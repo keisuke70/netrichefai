@@ -104,6 +104,7 @@ export type BaseRecipe = {
   // Type for a user
   export type User = {
     id: number; // Unique identifier for the user
-    name: string; // Name of the user
+    email: string; 
+    password: string;
   };
-  
+

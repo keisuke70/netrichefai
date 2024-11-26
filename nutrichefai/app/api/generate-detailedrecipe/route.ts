@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     }   
     const { category, cuisines, dietaryRestrictions, ingredients, steps } = detailedInfo;
 
-    /*
+    
     // Insert categories
     await Promise.all(
       (category || []).map(async (cat: string) => {
@@ -149,7 +149,6 @@ export async function GET(req: NextRequest) {
         `;
       })
     );
-    */
 
     return NextResponse.json(
       { ...recipe, ...detailedInfo },
