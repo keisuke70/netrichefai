@@ -2,6 +2,10 @@
 
 import { sql } from "@vercel/postgres"; // Import SQL client for interacting with PostgreSQL
 import { Recipe, DetailedRecipe } from "./definitions"; // Import the types defined in `definitions.ts`
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
+import bcrypt from "bcrypt";
+
 
 // Function to fetch a paginated list of recipes for a specific user
 export async function fetchUserRecipes(
@@ -140,4 +144,55 @@ export async function fetchDetailedRecipe(recipeId: string): Promise<DetailedRec
     ingredients,
     steps,
   };
+}
+
+export async function signup(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  // Check if the email already exists
+  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
+
+  if (existingUser.rows.length > 0) {
+    return `This email is already used`;
+  }
+
+  // Hash the password using bcrypt
+  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
+
+  // Store the user in the database with the hashed password
+  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
+
+  // Sign the user in using NextAuth's credentials provider
+  await signIn("credentials", {
+    redirect: true,
+    redirectTo: "/",
+    email,
+    password,
+  });
+}
+
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  try {
+    const email = formData.get("email");
+    const password = formData.get("password");
+
+    await signIn("credentials", {
+      redirect: true,
+      redirectTo: "/",
+      email,
+      password,
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return "Invalid credentials. Please try again.";
+    }
+    throw error;
+  }
 }
