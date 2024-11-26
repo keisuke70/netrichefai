@@ -1,9 +1,7 @@
-import { db } from '@vercel/postgres';
+import { db, VercelPoolClient } from '@vercel/postgres';
 import { categories, cuisines, dietaryRestrictions } from '../../../lib/placeholder-data';
 
-const client = await db.connect();
-
-async function seedcategories() {
+async function seedCategories(client: VercelPoolClient) {
     await client.sql`
         CREATE TABLE IF NOT EXISTS categories (
             id INT PRIMARY KEY,
@@ -24,16 +22,16 @@ async function seedcategories() {
     return insertedCategories;
 }
 
-async function seedCuisines() {
+async function seedCuisines(client: VercelPoolClient) {
     await client.sql`
         CREATE TABLE IF NOT EXISTS cuisines (
-        id INT PRIMARY KEY,
-        name VARCHAR (255) NOT NULL
+            id INT PRIMARY KEY,
+            name VARCHAR (255) NOT NULL
         );
     `;
 
     const insertedCuisines = await Promise.all(
-        cuisines.map((cuisine) => 
+        cuisines.map((cuisine) =>
             client.sql`
                 INSERT INTO cuisines (id, name)
                 VALUES (${cuisine.id}, ${cuisine.name})
@@ -45,11 +43,11 @@ async function seedCuisines() {
     return insertedCuisines;
 }
 
-async function seedDietaryRestrictions() {
+async function seedDietaryRestrictions(client: VercelPoolClient) {
     await client.sql`
         CREATE TABLE IF NOT EXISTS dietary_restrictions (
             id INT PRIMARY KEY,
-            name VARCHAR(255) NOT null,
+            name VARCHAR(255) NOT NULL,
             description TEXT
         );
     `;
@@ -68,17 +66,27 @@ async function seedDietaryRestrictions() {
 }
 
 export async function GET() {
+    const client = await db.connect(); // Initialize the client inside the function
     try {
         await client.sql`BEGIN`;
-        await seedcategories();
-        await seedCuisines();
-        await seedDietaryRestrictions();
+
+        // Seed the database
+        await seedCategories(client);
+        await seedCuisines(client);
+        await seedDietaryRestrictions(client);
+
         await client.sql`COMMIT`;
 
         return Response.json({ message: 'Database seeded successfully' });
-    } catch (error) {
+    } catch (error: any) {
         await client.sql`ROLLBACK`;
-        console.error('Database seeding failed: ', error);
-        return Response.json({ error: 'Failed to seed database' }, { status: 500 });
+        console.error('Database seeding failed:', error);
+
+        return Response.json(
+            { error: 'Failed to seed database', details: error.message },
+            { status: 500 }
+        );
+    } finally {
+        client.release(); // Ensure the client is released after use
     }
 }
