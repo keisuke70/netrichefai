@@ -5,7 +5,7 @@ import { Recipe, DetailedRecipe } from "./definitions"; // Import the types defi
 
 // Function to fetch a paginated list of recipes for a specific user
 export async function fetchUserRecipes(
-  userId: string, // The ID of the user whose recipes are being fetched
+  userId: number, // The ID of the user whose recipes are being fetched
   page: number = 1, // Default to the first page
   limit: number = 5 // Limit to 5 recipes per page
 ): Promise<{ recipes: Recipe[]; totalCount: number }> {
