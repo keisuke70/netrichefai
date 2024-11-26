@@ -1,7 +1,7 @@
 const categories = [
     { id: 10, name: 'Main Dish' },
-    { id : 11, name: 'Side Dish'},
-    { id: 12, name:'Salad' },
+    { id: 11, name: 'Side Dish'},
+    { id: 12, name: 'Salad' },
     { id: 13, name: 'Soup' },
     { id: 14, name: 'Noodle' },
     { id: 15, name: 'Grilled or Roasted'},
