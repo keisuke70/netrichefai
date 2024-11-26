@@ -8,12 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-interface Recipe {
-  id: string;
-  title: string;
-  description: string;
-}
+import { Recipe } from "../../lib/definitions"
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -25,9 +20,12 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => (
       <CardTitle className="text-xl">{recipe.title}</CardTitle>
     </CardHeader>
     <CardContent className="flex-grow">
-      <CardDescription className="line-clamp-3">
+      <CardDescription className="line-clamp-5">
         {recipe.description}
       </CardDescription>
+      <p className="text-sm text-gray-500 mt-2">
+        Cooking Time: {recipe.cooking_time}
+      </p>
     </CardContent>
     <CardFooter>
       <Button asChild className="w-full">

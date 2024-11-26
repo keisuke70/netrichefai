@@ -1,4 +1,4 @@
-import { Recipe } from "../types";
+import { Recipe } from "../../lib/definitions";
 import RecipeCard from "./RecipeCard";
 
 interface RecipeDisplayProps {

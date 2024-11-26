@@ -6,7 +6,7 @@ import IngredientInput from "./IngredientInput";
 import IngredientList from "./IngredientList";
 import RecipeDisplay from "./RecipeDisplay";
 import { Button } from "@/components/ui/button";
-import { Recipe } from "../types";
+import { Recipe } from "../../lib/definitions";
 
 
 const HomeScreen = () => {
@@ -15,6 +15,7 @@ const HomeScreen = () => {
 
   const addIngredient = (ingredient: string) => {
     setIngredients([...ingredients, ingredient]);
+    console.log("Updated ingredients:", ingredients);
   };
 
   const removeIngredient = (index: number) => {
@@ -23,34 +24,8 @@ const HomeScreen = () => {
 
   const generateRecipe = async () => {
     console.log("Generating recipe with:", ingredients);
+    console.log(`/api/generate-recipe?ingredients=${ingredients.join(",")}`);
 
-    // Mock data for testing purposes
-    const mockData: Recipe[] = [
-      {
-        id: "1",
-        title: "Spaghetti Bolognese",
-        description:
-          "A classic Italian pasta dish with a rich and savory meat sauce.",
-      },
-      {
-        id: "2",
-        title: "Chicken Caesar Salad",
-        description:
-          "A fresh salad with grilled chicken, romaine lettuce, and Caesar dressing.",
-      },
-      {
-        id: "3",
-        title: "Vegetable Stir Fry",
-        description:
-          "A quick and easy stir fry with mixed vegetables and a savory sauce.",
-      },
-    ];
-
-    // Use mock data instead of making an API call
-    setRecipes(mockData);
-
-    // Uncomment the following block for actual API call:
-    /*
     try {
       const response = await fetch(
         `/api/generate-recipe?ingredients=${ingredients.join(",")}`
@@ -63,7 +38,7 @@ const HomeScreen = () => {
     } catch (error) {
       console.error("Error fetching recipes:", error);
     }
-    */
+
   };
 
   return (
