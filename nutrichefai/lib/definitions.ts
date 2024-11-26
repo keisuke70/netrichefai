@@ -18,6 +18,15 @@ export type BaseRecipe = {
     ingredients: { name: string; allergens: string[] }[]; // List of ingredients and their allergens
     steps: string[]; // List of preparation steps
   };
+
+  // Type for a detailed recipe, extending Recipe
+  export type NutritionFact = {
+    nutrition_id: number;
+    recipe_id: number;
+    calories: number;
+    proteins: number;
+    fats: number;
+  };
   
   // Type for an individual recipe step
   export type RecipeStep = {
@@ -30,7 +39,6 @@ export type BaseRecipe = {
   export type Ingredient = {
     id: string; // Unique identifier for the ingredient
     name: string; // Name of the ingredient
-    storageTemp: number; // Recommended storage temperature for the ingredient
   };
   
   // Type for a perishable ingredient, extending Ingredient
@@ -84,6 +92,7 @@ export type BaseRecipe = {
   export type DietaryRestriction = {
     id: string; // Unique identifier for the restriction
     name: string; // Name of the restriction
+    description: string;
   };
   
   // Type for mapping recipes to dietary restrictions
