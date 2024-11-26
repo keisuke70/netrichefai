@@ -24,8 +24,7 @@ const HomeScreen = () => {
 
   const generateRecipe = async () => {
     console.log("Generating recipe with:", ingredients);
-    console.log(`/api/generate-recipe?ingredients=${ingredients.join(",")}`);
-
+  
     try {
       const response = await fetch(
         `/api/generate-recipe?ingredients=${ingredients.join(",")}`
@@ -35,10 +34,10 @@ const HomeScreen = () => {
       }
       const data = await response.json();
       setRecipes(data.recipes);
+      console.log("Fetched recipes:", data.recipes);
     } catch (error) {
       console.error("Error fetching recipes:", error);
     }
-
   };
 
   return (

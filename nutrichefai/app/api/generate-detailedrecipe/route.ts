@@ -1,9 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { sql } from "@vercel/postgres";
+import { z } from "zod";
+import { zodResponseFormat } from "openai/helpers/zod";
+import {
+  Recipe,
+  Category,
+  Cuisine,
+  Ingredient,
+  Allergen,
+  DietaryRestriction
+} from "@/lib/definitions";
+import { Restriction } from "next/dist/lib/metadata/types/metadata-types";
+
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+const detailedRecipeSchema = z.object({
+  category: z.array(z.string()),
+  cuisines: z.array(z.string()),
+  dietaryRestrictions: z.array(z.string()),
+  ingredients: z.array(
+    z.object({
+      name: z.string(),
+      allergens: z.array(z.string()),
+    })
+  ),
+  steps: z.array(z.string()),
 });
 
 export async function GET(req: NextRequest) {
@@ -18,7 +43,6 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Fetch basic recipe info
     const recipeResult = await sql`SELECT * FROM recipes WHERE id = ${recipeId};`;
     const recipe = recipeResult.rows[0];
 
@@ -29,13 +53,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Use ChatGPT to generate detailed recipe information
-    const completion = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.parse({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "user",
-          content: `Please respond in a JSON format with the following structure:
+          content: `Provide detailed information for the recipe titled '${recipe.title}' in the following structured JSON format:
           {
             "category": ["Main Dish", "Side Dish"],
             "cuisines": ["American", "Italian"],
@@ -45,42 +68,22 @@ export async function GET(req: NextRequest) {
               { "name": "Ingredient2", "allergens": [] }
             ],
             "steps": ["Step 1", "Step 2", "Step 3"]
-          }
-            
-          Provide detailed information for the recipe titled '${recipe.title}'. Include:
-          - Category (choose from: Main Dish, Side Dish, Salad, Soup, Noodle, Grilled or Roasted, Fried, Dessert, Snack, Bread),
-          - Cuisines (choose from: American, Japanese, Korean, Chinese, Indian, Vietnamese, Italian, French, Mexican, Spanish, Thai, Greek, Turkish, Russian, German, Brazilian, Middle Eastern, African, British),
-          - Dietary Restrictions (choose from: Vegetarian, Vegan, Gluten-Free, Low-Calorie, Low-Fat, Low-Carb, High-Protein, Kosher, Halal, Lactose-Free, Nut-Free, Low-Sodium),
-          - Ingredients with potential allergens,
-          - Step-by-step instructions.
-          Make sure the response follows the exact JSON structure as shown above.`,
+          }`,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 800,
-    });      
+      response_format: zodResponseFormat(detailedRecipeSchema, "detailed_recipe"),
+    });
 
-    // Parse detailed info from ChatGPT response
-    let detailedInfo;
-    try {
-      console.log("ChatGPT API Response:", completion.choices[0].message.content);
-      detailedInfo = JSON.parse(completion.choices[0].message.content);
-    } catch (e) {
-      console.error("Failed to parse JSON response from ChatGPT:", e);
-      return NextResponse.json(
-        { error: "ChatGPT response is not valid JSON" },
-        { status: 500 }
-      );
-    }   
+    const detailedInfo = completion.choices[0].message.parsed;
+
     const { category, cuisines, dietaryRestrictions, ingredients, steps } = detailedInfo;
 
-    
     // Insert categories
     await Promise.all(
-      (category || []).map(async (cat: string) => {
+      category.map(async (cat: Category) => {
         await sql`
           INSERT INTO recipe_categories (recipe_id, category_id)
-          SELECT ${recipeId}, id FROM categories WHERE name = ${cat}
+          SELECT ${recipeId}, id FROM categories WHERE name = ${cat.name}
           ON CONFLICT DO NOTHING;
         `;
       })
@@ -88,10 +91,10 @@ export async function GET(req: NextRequest) {
 
     // Insert cuisines
     await Promise.all(
-      (cuisines || []).map(async (cuisine: string) => {
+      cuisines.map(async (cuisine: Cuisine) => {
         await sql`
           INSERT INTO recipe_cuisines (recipe_id, cuisine_id)
-          SELECT ${recipeId}, id FROM cuisines WHERE name = ${cuisine}
+          SELECT ${recipeId}, id FROM cuisines WHERE name = ${cuisine.name}
           ON CONFLICT DO NOTHING;
         `;
       })
@@ -99,10 +102,10 @@ export async function GET(req: NextRequest) {
 
     // Insert dietary restrictions
     await Promise.all(
-      (dietaryRestrictions || []).map(async (restriction: string) => {
+      dietaryRestrictions.map(async (restriction: DietaryRestriction) => {
         await sql`
           INSERT INTO recipe_dietary_restrictions (recipe_id, dietary_id)
-          SELECT ${recipeId}, id FROM dietary_restrictions WHERE name = ${restriction}
+          SELECT ${recipeId}, id FROM dietary_restrictions WHERE name = ${restriction.name}
           ON CONFLICT DO NOTHING;
         `;
       })
@@ -110,38 +113,41 @@ export async function GET(req: NextRequest) {
 
     // Insert ingredients and allergens
     await Promise.all(
-      (ingredients || []).map(async (ingredient: any) => {
-        const ingredientResult = await sql`
-          INSERT INTO ingredients (name, storage_temp)
-          VALUES (${ingredient.name}, ${ingredient.storage_temp})
-          ON CONFLICT (name) DO NOTHING
-          RETURNING id;
-        `;
-        const ingredientId = ingredientResult.rows[0]?.id;
-        if (!ingredientId) return;
-
-        await sql`
-          INSERT INTO recipe_ingredients (recipe_id, ingredient_id)
-          VALUES (${recipeId}, ${ingredientId})
-          ON CONFLICT DO NOTHING;
-        `;
-
-        // Insert allergens for the ingredient
-        await Promise.all(
-          (ingredient.allergens || []).map(async (allergen: string) => {
-            await sql`
-              INSERT INTO ingredient_allergens (ingredient_id, allergen_id)
-              SELECT ${ingredientId}, id FROM allergens WHERE name = ${allergen}
-              ON CONFLICT DO NOTHING;
-            `;
-          })
-        );
-      })
+      (detailedInfo.ingredients as Array<Ingredient & { allergens: string[] }>).map(
+        async (ingredient: Ingredient & { allergens: string[] }) => {
+          const ingredientResult = await sql`
+            INSERT INTO ingredients (name)
+            VALUES (${ingredient.name})
+            ON CONFLICT (name) DO NOTHING
+            RETURNING id;
+          `;
+    
+          const ingredientId = ingredientResult.rows[0]?.id;
+          if (!ingredientId) return;
+    
+          await sql`
+            INSERT INTO recipe_ingredients (recipe_id, ingredient_id)
+            VALUES (${recipeId}, ${ingredientId})
+            ON CONFLICT DO NOTHING;
+          `;
+    
+          await Promise.all(
+            ingredient.allergens.map(async (allergen: string) => {
+              await sql`
+                INSERT INTO ingredient_allergens (ingredient_id, allergen_id)
+                SELECT ${ingredientId}, id FROM allergens WHERE name = ${allergen}
+                ON CONFLICT DO NOTHING;
+              `;
+            })
+          );
+        }
+      )
     );
+
 
     // Insert recipe steps
     await Promise.all(
-      (steps || []).map(async (step: string, index: number) => {
+      steps.map(async (step: string, index: number) => {
         await sql`
           INSERT INTO recipe_steps (recipe_id, step_num, description)
           VALUES (${recipeId}, ${index + 1}, ${step})
