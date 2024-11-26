@@ -1,7 +1,7 @@
 "use client";
 
-import { authenticate } from "@/lib/actions"; // Server action for authentication
 import { useActionState } from "react";
+import { signup } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,19 +15,19 @@ import {
 } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
 
-export function SignIn() {
-  // Manage state using useActionState for the authenticate action
+export default function SignupForm() {
+  // Using useActionState to handle server action states
   const [errorMessage, formAction, isPending] = useActionState(
-    authenticate,
+    signup,
     undefined
   );
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
+        <CardTitle className="text-2xl font-bold">Sign up</CardTitle>
         <CardDescription>
-          Enter your email and password to sign in to your account
+          Enter your email and password to create the account
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
@@ -49,7 +49,7 @@ export function SignIn() {
             {isPending && (
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Sign In
+            Sign Up
           </Button>
         </CardFooter>
       </form>
