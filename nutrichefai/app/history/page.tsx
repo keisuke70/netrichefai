@@ -28,18 +28,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useSession } from "next-auth/react";
+import { Recipe } from "@/lib/definitions";
 
-interface Recipe {
-  id: string;
-  title: string;
-  description: string;
-  cookingTime: number;
-  cuisine: string[];
-  category: string;
-  dietaryRestrictions: string[];
-}
-
-export default function RecipeHistory({ userId }: { userId: number }) {
+export default function RecipeHistory() {
+  const { data: session, status } = useSession();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -49,22 +42,33 @@ export default function RecipeHistory({ userId }: { userId: number }) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dietaryFilter, setDietaryFilter] = useState("all");
 
-  const fetchRecipes = async () => {
-    setIsLoading(true);
-    try {
-      const { recipes, totalCount } = await fetchUserRecipes(userId, page, 5);
-      setRecipes(recipes);
-      setTotalCount(totalCount);
-    } catch (error) {
-      console.error("Failed to fetch recipes:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  let userId: number | undefined;
 
   useEffect(() => {
+    if (status === "loading") return;
+
+    if (session?.user?.id) {
+      userId = parseInt(session.user.id, 10);
+    } else {
+      console.error("User ID is not available.");
+      return;
+    }
+
+    const fetchRecipes = async () => {
+      setIsLoading(true);
+      try {
+        const { recipes, totalCount } = await fetchUserRecipes(userId!, page, 5);
+        setRecipes(recipes);
+        setTotalCount(totalCount);
+      } catch (error) {
+        console.error("Failed to fetch recipes:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchRecipes();
-  }, [page]);
+  }, [status, session, page]);
 
   const totalPages = Math.ceil(totalCount / 5);
 

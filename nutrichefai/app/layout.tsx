@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import TopNavBar from "./component/Header";
+import { SessionProvider } from "next-auth/react";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -31,7 +32,9 @@ export default function RootLayout({
       >
         <div className="min-h-screen flex flex-col">
           <TopNavBar />
-          <main className="flex-grow">{children}</main>
+          <main className="flex-grow">
+            <SessionProvider>{children}</SessionProvider>
+          </main>
         </div>
       </body>
     </html>
