@@ -495,28 +495,25 @@ export async function getCuisinesAboveGlobalAverage(): Promise<
   }
 }
 
-// Get users with recipes in all categories
-export async function getUsersWithRecipesInAllCategories(): Promise<
-  { userId: number }[]
-> {
+export async function fetchRecipesByDietaryRestrictions(
+  restrictions: string[]
+): Promise<Record<string, any>[]> {
   try {
-    const { rows } = await sql<{ userId: number }>`
-      SELECT DISTINCT u.id AS userId
-      FROM users u
-      WHERE NOT EXISTS (
-        SELECT c.id
-        FROM categories c
-        WHERE NOT EXISTS (
-          SELECT r.id
-          FROM recipes r
-          JOIN recipe_categories rc ON r.id = rc.recipe_id
-          WHERE rc.category_id = c.id AND r.user_id = u.id
-        )
-      );
+    // Join restrictions into a single quoted, comma-separated string
+    const formattedRestrictions = restrictions.map((r) => `'${r}'`).join(", ");
+    const query = `
+      SELECT r.id, r.title, r.description, r.cooking_time
+      FROM recipes r
+      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+      JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+      WHERE dr.name IN (${formattedRestrictions})
+      GROUP BY r.id
+      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};
     `;
+    const { rows } = await sql<Record<string, any>>([query] as unknown as TemplateStringsArray);
     return rows;
   } catch (error) {
-    console.error("Error fetching users with recipes in all categories:", error);
-    throw new Error("Failed to fetch users with recipes in all categories.");
+    console.error("Error fetching recipes by dietary restrictions:", error);
+    throw new Error("Failed to fetch recipes by dietary restrictions.");
   }
 }
