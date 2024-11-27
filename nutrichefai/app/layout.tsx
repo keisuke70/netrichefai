@@ -29,11 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
           <TopNavBar />
-          <main className="flex-grow">
-            {children}
-          </main>
+          <main className="flex-grow overflow-y-auto">{children}</main>
         </div>
       </body>
     </html>

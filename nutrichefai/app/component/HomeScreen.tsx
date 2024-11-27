@@ -45,11 +45,13 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <Banner />
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">Add Your Ingredients</h2>
+        <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-6 rounded-lg shadow-md border border-gray-400">
+          <h2 className="text-2xl font-semibold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">
+            Add Your Ingredients
+          </h2>
           <IngredientInput addIngredient={addIngredient} />
           <IngredientList
             ingredients={ingredients}
