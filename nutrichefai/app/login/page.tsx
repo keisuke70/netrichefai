@@ -1,4 +1,4 @@
-import Link from "next/link"; // Import the Link component
+import Link from "next/link";
 import { SignIn } from "../component/SignIn";
 
 export default function LoginPage() {
