@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { Home, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { signOut } from "@/auth";
 
 export default function TopNavBar() {
   return (
     <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
+          {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center">
               <svg
@@ -27,6 +29,8 @@ export default function TopNavBar() {
               </span>
             </Link>
           </div>
+
+          {/* Navigation Links */}
           <div className="flex items-center space-x-4">
             <Button variant="ghost" asChild>
               <Link href="/" className="flex items-center space-x-2">
@@ -40,6 +44,21 @@ export default function TopNavBar() {
                 <span>Recipe History</span>
               </Link>
             </Button>
+
+            {/* Log Out Button */}
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirect: true, redirectTo: "/" });
+              }}
+            >
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
+              >
+                <span>Log Out</span>
+              </button>
+            </form>
           </div>
         </div>
       </div>

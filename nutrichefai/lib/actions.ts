@@ -216,27 +216,28 @@ export async function fetchDietaryRestrictions(): Promise<DietaryRestriction[]> 
   return rows;
 }
 
-// User signup
-export async function signup(formData: FormData): Promise<string | void> {
+
+export async function signup(
+  prevState: string | undefined,
+  formData: FormData
+) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const { rows: existingUser } = await sql`
-    SELECT id
-    FROM users
-    WHERE email = ${email};
-  `;
+  // Check if the email already exists
+  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
 
-  if (existingUser.length > 0) {
-    return "This email is already used.";
+  if (existingUser.rows.length > 0) {
+    return `This email is already used`;
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  await sql`
-    INSERT INTO users (email, password)
-    VALUES (${email}, ${hashedPassword});
-  `;
+  // Hash the password using bcrypt
+  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
 
+  // Store the user in the database with the hashed password
+  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
+
+  // Sign the user in using NextAuth's credentials provider
   await signIn("credentials", {
     redirect: true,
     redirectTo: "/",
@@ -245,12 +246,14 @@ export async function signup(formData: FormData): Promise<string | void> {
   });
 }
 
-// User authentication
-export async function authenticate(formData: FormData): Promise<string | void> {
-  const email = formData.get("email");
-  const password = formData.get("password");
-
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData
+) {
   try {
+    const email = formData.get("email");
+    const password = formData.get("password");
+
     await signIn("credentials", {
       redirect: true,
       redirectTo: "/",
@@ -264,7 +267,6 @@ export async function authenticate(formData: FormData): Promise<string | void> {
     throw error;
   }
 }
-
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
     if (!recipeId) {
