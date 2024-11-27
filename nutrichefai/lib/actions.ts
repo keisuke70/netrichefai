@@ -17,40 +17,40 @@ import {
   DietaryRestriction,
 } from "./definitions";
 
-// Fetch user recipes with pagination
-export async function fetchUserRecipes(
-  userId: number,
-  page: number = 1,
-  limit: number = 5
-): Promise<{ recipes: Recipe[]; totalCount: number }> {
-  const offset = (page - 1) * limit;
+// // Fetch user recipes with pagination
+// export async function fetchUserRecipes(
+//   userId: number,
+//   page: number = 1,
+//   limit: number = 5
+// ): Promise<{ recipes: Recipe[]; totalCount: number }> {
+//   const offset = (page - 1) * limit;
 
-  const { rows } = await sql`
-    SELECT 
-      r.id, 
-      r.user_id, 
-      r.title, 
-      r.description, 
-      r.cooking_time AS "cooking_time"
-    FROM recipes r
-    WHERE r.user_id = ${userId}
-    ORDER BY r.id ASC
-    LIMIT ${limit} OFFSET ${offset};
-  `;
+//   const { rows } = await sql`
+//     SELECT 
+//       r.id, 
+//       r.user_id, 
+//       r.title, 
+//       r.description, 
+//       r.cooking_time AS "cooking_time"
+//     FROM recipes r
+//     WHERE r.user_id = ${userId}
+//     ORDER BY r.id ASC
+//     LIMIT ${limit} OFFSET ${offset};
+//   `;
 
-  const totalCount = parseInt(
-    (
-      await sql`
-        SELECT COUNT(*) AS total_count
-        FROM recipes
-        WHERE user_id = ${userId};
-      `
-    ).rows[0]?.total_count || "0",
-    10
-  );
+//   const totalCount = parseInt(
+//     (
+//       await sql`
+//         SELECT COUNT(*) AS total_count
+//         FROM recipes
+//         WHERE user_id = ${userId};
+//       `
+//     ).rows[0]?.total_count || "0",
+//     10
+//   );
 
-  return { recipes: rows as Recipe[], totalCount };
-}
+//   return { recipes: rows as Recipe[], totalCount };
+// }
 
 // Fetch a single user's recipes without pagination
 export async function fetchRecipeByUser(userId: number): Promise<Recipe[]> {

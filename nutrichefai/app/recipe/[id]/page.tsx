@@ -3,6 +3,15 @@
 import { useEffect, useState } from "react";
 import { Recipe } from "@/lib/definitions";
 import { useParams } from "next/navigation";
+import {
+  Clock,
+  Utensils,
+  Globe,
+  Leaf,
+  List,
+  ChefHat,
+  Info,
+} from "lucide-react";
 
 type DetailedRecipe = Recipe & {
   category: string[];
@@ -54,78 +63,160 @@ export default function RecipeDetailPage() {
   }, [id]);
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading recipe details...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-500">{error}</div>;
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        {error}
+      </div>
+    );
   }
 
   if (!detailedRecipe) {
-    return <div className="text-center py-8">Recipe not found.</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Recipe not found.
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8 bg-white rounded-lg shadow-md">
-      <h1 className="text-3xl font-bold mb-4">{detailedRecipe.title}</h1>
-      <p className="text-lg mb-6">{detailedRecipe.description}</p>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Categories</h2>
-        <p>{detailedRecipe.category.join(", ")}</p>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Cuisines</h2>
-        <p>{detailedRecipe.cuisines.join(", ")}</p>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Dietary Restrictions</h2>
-        <p>{detailedRecipe.dietaryRestrictions.join(", ") || "None"}</p>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Cooking Time</h2>
-        <p>{detailedRecipe.cooking_time} minutes</p>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Ingredients</h2>
-        <ul className="list-disc list-inside">
-          {detailedRecipe.ingredients.map((ingredient, index) => (
-            <li key={index}>
-              {ingredient.name}
-              {ingredient.allergens && ingredient.allergens.length > 0 && (
-                <span className="text-red-500">
-                  {" "}
-                  (Allergens: {ingredient.allergens.join(", ")})
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold mb-2">Instructions</h2>
-        <ol className="list-decimal list-inside">
-          {detailedRecipe.steps.map((step, index) => (
-            <li key={index} className="mb-2">
-              {step}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      {detailedRecipe.nutritionFacts && (
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-2">Nutrition Facts</h2>
-          <p>Calories: {detailedRecipe.nutritionFacts.calories}</p>
-          <p>Proteins: {detailedRecipe.nutritionFacts.proteins}g</p>
-          <p>Fats: {detailedRecipe.nutritionFacts.fats}g</p>
+    <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+          <h1 className="text-4xl font-bold mb-2">{detailedRecipe.title}</h1>
+          <p className="text-lg opacity-90">{detailedRecipe.description}</p>
         </div>
-      )}
+
+        <div className="p-6 space-y-8">
+          <RecipeSection
+            icon={<Utensils className="w-6 h-6" />}
+            title="Categories"
+          >
+            {detailedRecipe.category.join(", ")}
+          </RecipeSection>
+
+          <RecipeSection icon={<Globe className="w-6 h-6" />} title="Cuisines">
+            {detailedRecipe.cuisines.join(", ")}
+          </RecipeSection>
+
+          <RecipeSection
+            icon={<Leaf className="w-6 h-6" />}
+            title="Dietary Restrictions"
+          >
+            {detailedRecipe.dietaryRestrictions.join(", ") || "None"}
+          </RecipeSection>
+
+          <RecipeSection
+            icon={<Clock className="w-6 h-6" />}
+            title="Cooking Time"
+          >
+            {detailedRecipe.cooking_time} minutes
+          </RecipeSection>
+
+          <RecipeSection
+            icon={<List className="w-6 h-6" />}
+            title="Ingredients"
+          >
+            <ul className="list-disc list-inside space-y-2">
+              {detailedRecipe.ingredients.map((ingredient, index) => (
+                <li key={index}>
+                  {ingredient.name}
+                  {ingredient.allergens && ingredient.allergens.length > 0 && (
+                    <span className="text-red-500 ml-2 text-sm">
+                      (Allergens: {ingredient.allergens.join(", ")})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </RecipeSection>
+
+          <RecipeSection
+            icon={<ChefHat className="w-6 h-6" />}
+            title="Instructions"
+          >
+            <ol className="list-decimal list-inside space-y-4">
+              {detailedRecipe.steps.map((step, index) => (
+                <li key={index} className="pl-2">
+                  <span className="font-medium">Step {index + 1}:</span> {step}
+                </li>
+              ))}
+            </ol>
+          </RecipeSection>
+
+          {detailedRecipe.nutritionFacts && (
+            <RecipeSection
+              icon={<Info className="w-6 h-6" />}
+              title="Nutrition Facts"
+            >
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <NutritionFact
+                  label="Calories"
+                  value={detailedRecipe.nutritionFacts.calories}
+                  unit=""
+                />
+                <NutritionFact
+                  label="Proteins"
+                  value={detailedRecipe.nutritionFacts.proteins}
+                  unit="g"
+                />
+                <NutritionFact
+                  label="Fats"
+                  value={detailedRecipe.nutritionFacts.fats}
+                  unit="g"
+                />
+              </div>
+            </RecipeSection>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecipeSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h2 className="text-2xl font-semibold mb-4 flex items-center">
+        {icon}
+        <span className="ml-2">{title}</span>
+      </h2>
+      <div className="ml-8">{children}</div>
+    </div>
+  );
+}
+
+function NutritionFact({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+}) {
+  return (
+    <div className="bg-gray-100 p-4 rounded-lg">
+      <div className="text-lg font-semibold">
+        {value}
+        {unit}
+      </div>
+      <div className="text-sm text-gray-600">{label}</div>
     </div>
   );
 }

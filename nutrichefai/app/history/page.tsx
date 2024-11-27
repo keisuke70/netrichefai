@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchUserRecipes } from "@/lib/actions";
+import { fetchRecipeByUser } from "@/lib/actions";
 import { Search, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,14 +58,11 @@ export default function RecipeHistory() {
       const fetchRecipes = async () => {
         setIsLoading(true);
         try {
-          const { recipes, totalCount } = await fetchUserRecipes(
-            userId!,
-            page,
-            5
+          const recipes = await fetchRecipeByUser(
+            userId!
           );
           setRecipes(recipes);
-          setTotalCount(totalCount);
-          console.log(recipes);
+          setTotalCount(recipes.length);
         } catch (error) {
           console.error("Failed to fetch recipes:", error);
         } finally {
@@ -77,7 +74,7 @@ export default function RecipeHistory() {
     }
   }, [status, session, page]);
 
-  const totalPages = Math.ceil(totalCount / 5);
+  const totalPages = Math.ceil(totalCount / 6);
 
   const clearHistory = () => {
     setRecipes([]);
@@ -119,7 +116,7 @@ export default function RecipeHistory() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Cuisine Filter */}
+   
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Cuisine" />
@@ -136,7 +133,7 @@ export default function RecipeHistory() {
             </SelectContent>
           </Select>
 
-          {/* Category Filter */}
+   
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Category" />
@@ -153,7 +150,6 @@ export default function RecipeHistory() {
             </SelectContent>
           </Select>
 
-          {/* Dietary Restrictions Filter */}
           <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Dietary Restrictions" />
