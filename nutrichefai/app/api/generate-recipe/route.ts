@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       id: `recipe-${index + 1}`,
       title: recipe.title,
       description: recipe.description,
-      cooking_time: recipe.cookingTime,
+      cooking_time: recipe.cooking_time,
     }));
 
     return NextResponse.json({ recipes }, { status: 200 });
