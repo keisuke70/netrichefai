@@ -339,4 +339,182 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
     throw new Error("Failed to fetch cuisine with the most popular recipes.");
   }
 }
+// Insert a new recipe
+export async function insertRecipe(data: {
+  userId: number;
+  title: string;
+  description: string;
+  cookingTime: number;
+  categoryId: number;
+}): Promise<{ message: string; recipeId?: number }> {
+  try {
+    const { rows: categoryRows } = await sql<{ id: number }>`
+      SELECT id FROM categories WHERE id = ${data.categoryId};
+    `;
+    if (categoryRows.length === 0) {
+      return { message: "Category does not exist." };
+    }
 
+    const { rows: recipeRows } = await sql<{ id: number }>`
+      INSERT INTO recipes (user_id, title, description, cooking_time)
+      VALUES (${data.userId}, ${data.title}, ${data.description}, ${data.cookingTime})
+      RETURNING id;
+    `;
+
+    const recipeId = recipeRows[0].id;
+
+    await sql`
+      INSERT INTO recipe_categories (recipe_id, category_id)
+      VALUES (${recipeId}, ${data.categoryId});
+    `;
+
+    return { message: "Recipe inserted successfully.", recipeId };
+  } catch (error) {
+    console.error("Error inserting recipe:", error);
+    throw new Error("Failed to insert recipe.");
+  }
+}
+
+// Search recipes based on filters
+export async function searchRecipes(filters: string): Promise<{ id: number; title: string }[]> {
+  try {
+    const query = `
+      SELECT id, title
+      FROM recipes
+      WHERE ${filters};
+    `;
+    const { rows } = await sql<{ id: number; title: string }>([query] as unknown as TemplateStringsArray);
+    return rows;
+  } catch (error) {
+    console.error("Error searching recipes:", error);
+    throw new Error("Failed to search recipes.");
+  }
+}
+
+
+
+// Project recipe attributes
+export async function projectRecipeAttributes(attributes: string[]): Promise<Record<string, any>[]> {
+  try {
+    const selectedAttributes = attributes.join(", ");
+    const query = `
+      SELECT ${selectedAttributes}
+      FROM recipes;
+    `;
+    const { rows } = await sql<Record<string, any>>([query] as unknown as TemplateStringsArray);
+    return rows;
+  } catch (error) {
+    console.error("Error projecting attributes:", error);
+    throw new Error("Failed to project attributes.");
+  }
+}
+
+
+// Join recipes and categories
+export async function joinRecipesAndCategories(
+  categoryId: number
+): Promise<{ recipe: string; category: string }[]> {
+  try {
+    const { rows } = await sql<{ recipe: string; category: string }>`
+      SELECT r.title AS recipe, c.name AS category
+      FROM recipes r
+      JOIN recipe_categories rc ON r.id = rc.recipe_id
+      JOIN categories c ON rc.category_id = c.id
+      WHERE c.id = ${categoryId};
+    `;
+    return rows;
+  } catch (error) {
+    console.error("Error joining recipes and categories:", error);
+    throw new Error("Failed to join recipes and categories.");
+  }
+}
+
+// Get recipes grouped by cuisine
+export async function getRecipesGroupedByCuisine(): Promise<
+  { cuisine: string; recipe_count: number }[]
+> {
+  try {
+    const { rows } = await sql<{ cuisine: string; recipe_count: number }>`
+      SELECT cu.name AS cuisine, COUNT(r.id) AS recipe_count
+      FROM cuisines cu
+      LEFT JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+      LEFT JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY cu.name
+      ORDER BY recipe_count DESC;
+    `;
+    return rows;
+  } catch (error) {
+    console.error("Error fetching recipes grouped by cuisine:", error);
+    throw new Error("Failed to fetch recipes grouped by cuisine.");
+  }
+}
+
+// Get popular cuisines with minimum popularity
+export async function getPopularCuisines(
+  minPopularity: number
+): Promise<{ cuisine: string; average_popularity: number }[]> {
+  try {
+    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
+      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
+      FROM cuisines cu
+      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY cu.name
+      HAVING AVG(r.popularity) > ${minPopularity}
+      ORDER BY average_popularity DESC;
+    `;
+    return rows;
+  } catch (error) {
+    console.error("Error fetching popular cuisines:", error);
+    throw new Error("Failed to fetch popular cuisines.");
+  }
+}
+
+// Get cuisines with popularity above global average
+export async function getCuisinesAboveGlobalAverage(): Promise<
+  { cuisine: string; average_popularity: number }[]
+> {
+  try {
+    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
+      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
+      FROM cuisines cu
+      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY cu.name
+      HAVING AVG(r.popularity) > (
+        SELECT AVG(r2.popularity) FROM recipes r2
+      )
+      ORDER BY average_popularity DESC;
+    `;
+    return rows;
+  } catch (error) {
+    console.error("Error fetching cuisines above global average:", error);
+    throw new Error("Failed to fetch cuisines above global average.");
+  }
+}
+
+// Get users with recipes in all categories
+export async function getUsersWithRecipesInAllCategories(): Promise<
+  { userId: number }[]
+> {
+  try {
+    const { rows } = await sql<{ userId: number }>`
+      SELECT DISTINCT u.id AS userId
+      FROM users u
+      WHERE NOT EXISTS (
+        SELECT c.id
+        FROM categories c
+        WHERE NOT EXISTS (
+          SELECT r.id
+          FROM recipes r
+          JOIN recipe_categories rc ON r.id = rc.recipe_id
+          WHERE rc.category_id = c.id AND r.user_id = u.id
+        )
+      );
+    `;
+    return rows;
+  } catch (error) {
+    console.error("Error fetching users with recipes in all categories:", error);
+    throw new Error("Failed to fetch users with recipes in all categories.");
+  }
+}
