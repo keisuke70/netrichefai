@@ -265,6 +265,51 @@ export async function authenticate(formData: FormData): Promise<string | void> {
   }
 }
 
+export async function deleteRecipe(recipeId: number): Promise<string> {
+  try {
+    if (!recipeId) {
+      throw new Error("Recipe ID is required.");
+    }
+
+    await sql`
+      DELETE FROM recipes
+      WHERE id = ${recipeId};
+    `;
+
+    return "Recipe deleted successfully.";
+  } catch (error) {
+    console.error("Error deleting recipe:", error);
+    throw new Error("Failed to delete the recipe. Please try again.");
+  }
+}
+
+export async function numOfRecipesByCategory(): Promise<
+  { category: string; recipe_count: number }[]
+> {
+  try {
+    const { rows } = await sql`
+      SELECT 
+        c.name AS category, 
+        COUNT(r.id) AS recipe_count
+      FROM categories c
+      LEFT JOIN recipe_categories rc ON c.id = rc.category_id
+      LEFT JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY c.name
+      ORDER BY recipe_count DESC; -- Optional: Order by count, descending
+    `;
+
+    return rows.map((row) => ({
+      category: row.category,
+      recipe_count: parseInt(row.recipe_count, 10),
+    }));
+  } catch (error) {
+    console.error("Error fetching recipes by category:", error);
+    throw new Error("Failed to fetch recipes by category.");
+  }
+}
+
+
+
 
 export async function GET(req: NextRequest) {
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10", 10);
