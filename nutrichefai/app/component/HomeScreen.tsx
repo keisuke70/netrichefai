@@ -8,14 +8,13 @@ import RecipeDisplay from "./RecipeDisplay";
 import { Button } from "@/components/ui/button";
 import { Recipe } from "../../lib/definitions";
 
-
 const HomeScreen = () => {
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
 
   const addIngredient = (ingredient: string) => {
     setIngredients([...ingredients, ingredient]);
-    console.log("Updated ingredients:", ingredients);
+    console.log("Updated ingredients:", [...ingredients, ingredient]);
   };
 
   const removeIngredient = (index: number) => {
@@ -24,7 +23,7 @@ const HomeScreen = () => {
 
   const generateRecipe = async () => {
     console.log("Generating recipe with:", ingredients);
-  
+
     try {
       const response = await fetch(
         `/api/generate-recipe?ingredients=${ingredients.join(",")}`
@@ -33,7 +32,12 @@ const HomeScreen = () => {
         throw new Error("Failed to fetch recipes");
       }
       const data = await response.json();
-      setRecipes(data.recipes);
+      setRecipes(
+        data.recipes.map((recipe: Recipe, index: number) => ({
+          ...recipe,
+          id: recipe.id || index,
+        }))
+      );
       console.log("Fetched recipes:", data.recipes);
     } catch (error) {
       console.error("Error fetching recipes:", error);

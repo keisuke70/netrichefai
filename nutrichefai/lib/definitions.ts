@@ -1,10 +1,10 @@
 // Base type for recipes, containing common properties
 export type Recipe = {
-    id: number; // Unique identifier for the recipe
-    user_id: number;
+    id?: number; // Unique identifier for the recipe
+    user_id?: number;
     title: string; // Recipe title
     description: string; // Brief description of the recipe
-    cooking_time: string;
+    cooking_time: number;
   };
   
   // // Type for a general recipe, extending BaseRecipe

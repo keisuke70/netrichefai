@@ -1,5 +1,9 @@
 import { db } from "@vercel/postgres";
-import { categories, cuisines, dietaryRestrictions } from "../../../lib/placeholder-data";
+import {
+  categories,
+  cuisines,
+  dietaryRestrictions,
+} from "../../../lib/placeholder-data";
 
 export async function GET() {
   const client = await db.connect();
@@ -28,21 +32,21 @@ export async function GET() {
 
     await client.sql`
       CREATE TABLE IF NOT EXISTS categories (
-        id INT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL
       );
     `;
 
     await client.sql`
       CREATE TABLE IF NOT EXISTS cuisines (
-        id INT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL
       );
     `;
 
     await client.sql`
       CREATE TABLE IF NOT EXISTS dietary_restrictions (
-        id INT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
         description TEXT
       );
@@ -109,6 +113,7 @@ export async function GET() {
         PRIMARY KEY (recipe_id, ingredient_id)
       );
     `;
+
     await client.sql`
       CREATE TABLE IF NOT EXISTS recipe_steps (
         recipe_id INT REFERENCES recipes(id) ON DELETE CASCADE,
@@ -121,7 +126,7 @@ export async function GET() {
     await client.sql`
       CREATE TABLE IF NOT EXISTS nutrition_facts (
         nutrition_id SERIAL PRIMARY KEY,
-        recipe_id INT REFERENCES recipes(id) ON DELETE CASCADE,
+        recipe_id INT UNIQUE REFERENCES recipes(id) ON DELETE CASCADE,
         calories INT NOT NULL,
         proteins INT NOT NULL,
         fats INT NOT NULL
@@ -131,29 +136,30 @@ export async function GET() {
     // Insert data into Categories
     for (const category of categories) {
       await client.sql`
-        INSERT INTO categories (id, name)
-        VALUES (${category.id}, ${category.name})
-        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO categories (name)
+        VALUES (${category.name})
+        ON CONFLICT (name) DO NOTHING;
       `;
     }
 
     // Insert data into Cuisines
     for (const cuisine of cuisines) {
       await client.sql`
-        INSERT INTO cuisines (id, name)
-        VALUES (${cuisine.id}, ${cuisine.name})
-        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO cuisines (name)
+        VALUES (${cuisine.name})
+        ON CONFLICT (name) DO NOTHING;
       `;
     }
 
     // Insert data into Dietary Restrictions
     for (const restriction of dietaryRestrictions) {
       await client.sql`
-        INSERT INTO dietary_restrictions (id, name, description)
-        VALUES (${restriction.id}, ${restriction.name}, ${restriction.description})
-        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO dietary_restrictions (name, description)
+        VALUES (${restriction.name}, ${restriction.description})
+        ON CONFLICT (name) DO NOTHING;
       `;
     }
+
     await client.sql`COMMIT`;
 
     return new Response(
@@ -163,12 +169,10 @@ export async function GET() {
   } catch (error) {
     await client.sql`ROLLBACK`;
     console.error("Database seeding failed:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to seed database" }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Failed to seed database" }), {
+      status: 500,
+    });
   } finally {
     client.release();
   }
 }
-

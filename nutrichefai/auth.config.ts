@@ -6,19 +6,31 @@ export const authConfig = {
     signIn: "/login",
   },
   providers: [
-    // added later in auth.ts since it requires bcrypt which is only compatible with Node.js
-    // while this file is also used in non-Node.js environments
+    // Add your providers here
   ],
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnMain = nextUrl.pathname.startsWith("/x"); //later remove x
-      if (isOnMain) {
+      const isSignupPage = nextUrl.pathname === "/signup";
+      const isLoginPage = nextUrl.pathname === "/login";
+      const isMainPage = nextUrl.pathname === "/"; // Adjust as needed for your main pages
+
+      // Allow unauthenticated access to /signup and /login
+      if (isSignupPage || isLoginPage) {
+        return true;
+      }
+
+      // Require authentication for main pages
+      if (isMainPage) {
         if (isLoggedIn) return true;
-        return false; // Redirect unauthenticated users to login page
-      } else if (isLoggedIn) {
+        return NextResponse.redirect(new URL("/login", nextUrl));
+      }
+
+      // Redirect logged-in users away from /login or /signup to /
+      if (isLoggedIn && (isLoginPage || isSignupPage)) {
         return NextResponse.redirect(new URL("/", nextUrl));
       }
+      // Allow access to other pages
       return true;
     },
   },

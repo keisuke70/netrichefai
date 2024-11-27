@@ -24,7 +24,7 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => (
         {recipe.description}
       </CardDescription>
       <p className="text-sm text-gray-500 mt-2">
-        Cooking Time: {recipe.cooking_time}
+        Cooking Time: {recipe.cooking_time} min
       </p>
     </CardContent>
     <CardFooter>
