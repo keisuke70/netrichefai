@@ -1,48 +1,43 @@
 "use server";
 
-import { sql } from "@vercel/postgres"; // Import SQL client for interacting with PostgreSQL
-import { Recipe, DetailedRecipe } from "./definitions"; // Import the types defined in `definitions.ts`
+import { sql } from "@vercel/postgres";
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcrypt";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
-import bcrypt from "bcrypt";
+import {
+  Recipe,
+  RecipeStep,
+  NutritionFact,
+  Ingredient,
+  PerishableIngredient,
+  Allergen,
+  Category,
+  Cuisine,
+  DietaryRestriction,
+} from "./definitions";
 
-
-// Function to fetch a paginated list of recipes for a specific user
+// Fetch user recipes with pagination
 export async function fetchUserRecipes(
-  userId: number, // The ID of the user whose recipes are being fetched
-  page: number = 1, // Default to the first page
-  limit: number = 5 // Limit to 5 recipes per page
+  userId: number,
+  page: number = 1,
+  limit: number = 5
 ): Promise<{ recipes: Recipe[]; totalCount: number }> {
-  const offset = (page - 1) * limit; // Calculate the starting point for pagination
+  const offset = (page - 1) * limit;
 
-  // SQL query to fetch recipes along with related information (cuisine, category, dietary restrictions)
   const { rows } = await sql`
     SELECT 
       r.id, 
+      r.user_id, 
       r.title, 
       r.description, 
-      r.cooking_time AS "cookingTime", -- Convert database field to camelCase for TypeScript
-      ARRAY_AGG(DISTINCT c.name) AS cuisine, -- Aggregate cuisines as an array
-      (
-        SELECT cat.name
-        FROM recipe_categories rcat
-        JOIN categories cat ON rcat.category_id = cat.id
-        WHERE rcat.recipe_id = r.id
-        LIMIT 1 -- Fetch only one category per recipe
-      ) AS category,
-      ARRAY_AGG(DISTINCT dr.name) AS dietaryRestrictions -- Aggregate dietary restrictions as an array
+      r.cooking_time AS "cooking_time"
     FROM recipes r
-    LEFT JOIN recipe_cuisines rc ON r.id = rc.recipe_id
-    LEFT JOIN cuisines c ON rc.cuisine_id = c.id
-    LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
-    LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-    WHERE r.user_id = ${userId} -- Filter by the specific user ID
-    GROUP BY r.id
+    WHERE r.user_id = ${userId}
     ORDER BY r.id ASC
-    LIMIT ${limit} OFFSET ${offset}; -- Apply pagination
+    LIMIT ${limit} OFFSET ${offset};
   `;
 
-  // SQL query to fetch the total number of recipes for the user
   const totalCount = parseInt(
     (
       await sql`
@@ -50,63 +45,53 @@ export async function fetchUserRecipes(
         FROM recipes
         WHERE user_id = ${userId};
       `
-    ).rows[0]?.total_count || "0", // Default to "0" if no rows are returned
+    ).rows[0]?.total_count || "0",
     10
   );
 
-  // Map SQL rows to the `Recipe` type
-  const recipes: Recipe[] = rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    cookingTime: row.cookingTime,
-    cuisine: row.cuisine || [], // Default to an empty array if null
-    category: row.category || "", // Default to an empty string if null
-    dietaryRestrictions: row.dietaryRestrictions || [], // Default to an empty array if null
-  }));
-
-  return { recipes, totalCount }; // Return the recipes and the total count
+  return { recipes: rows as Recipe[], totalCount };
 }
 
-// Function to fetch detailed information about a single recipe
-export async function fetchDetailedRecipe(recipeId: string): Promise<DetailedRecipe> {
-  // SQL query to fetch the recipe's basic details
+// Fetch a single user's recipes without pagination
+export async function fetchRecipeByUser(userId: number): Promise<Recipe[]> {
+  const { rows } = await sql<Recipe>`
+    SELECT 
+      r.id, 
+      r.user_id, 
+      r.title, 
+      r.description, 
+      r.cooking_time AS "cooking_time"
+    FROM recipes r
+    WHERE r.user_id = ${userId};
+  `;
+  return rows;
+}
+
+// Fetch detailed recipe information
+export async function fetchDetailedRecipe(recipeId: number) {
   const { rows: recipeRows } = await sql`
     SELECT 
       r.id, 
+      r.user_id, 
       r.title, 
       r.description, 
-      r.cooking_time AS "cookingTime", -- Include cookingTime
-      (
-        SELECT COALESCE(cat.name, '') -- Fetch category name or default to an empty string
-        FROM recipe_categories rcat
-        JOIN categories cat ON rcat.category_id = cat.id
-        WHERE rcat.recipe_id = r.id
-        LIMIT 1
-      ) AS category,
-      COALESCE(ARRAY_AGG(DISTINCT c.name), '{}') AS cuisine, -- Default to an empty array if null
-      COALESCE(ARRAY_AGG(DISTINCT dr.name), '{}') AS dietaryRestrictions -- Default to an empty array if null
+      r.cooking_time AS "cooking_time"
     FROM recipes r
-    LEFT JOIN recipe_cuisines rc ON r.id = rc.recipe_id
-    LEFT JOIN cuisines c ON rc.cuisine_id = c.id
-    LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
-    LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-    WHERE r.id = ${recipeId} -- Filter by the specific recipe ID
-    GROUP BY r.id;
+    WHERE r.id = ${recipeId};
   `;
 
-  // If no recipe is found, throw an error
   if (recipeRows.length === 0) {
     throw new Error(`Recipe with ID ${recipeId} not found.`);
   }
 
-  const recipe = recipeRows[0]; // Extract the first (and only) row
+  const recipe = recipeRows[0];
 
-  // SQL query to fetch the ingredients and allergens for the recipe
   const { rows: ingredientRows } = await sql`
     SELECT 
-      i.name AS ingredient_name,
-      COALESCE(ARRAY_AGG(DISTINCT a.name), '{}') AS allergens -- Default to an empty array if null
+      i.id,
+      i.name,
+      i.storage_temp,
+      COALESCE(ARRAY_AGG(DISTINCT a.name), '{}') AS allergens
     FROM recipe_ingredients ri
     JOIN ingredients i ON ri.ingredient_id = i.id
     LEFT JOIN ingredient_allergens ia ON i.id = ia.ingredient_id
@@ -115,58 +100,143 @@ export async function fetchDetailedRecipe(recipeId: string): Promise<DetailedRec
     GROUP BY i.id;
   `;
 
-  // Map SQL rows to an array of ingredients
   const ingredients = ingredientRows.map((row) => ({
-    name: row.ingredient_name,
-    allergens: row.allergens || [], // Default to an empty array if null
+    id: row.id,
+    name: row.name,
+    storage_temp: row.storage_temp,
+    allergens: row.allergens || [],
   }));
 
-  // SQL query to fetch the recipe's preparation steps
   const { rows: stepRows } = await sql`
     SELECT step_num, description
     FROM recipe_steps
     WHERE recipe_id = ${recipeId}
-    ORDER BY step_num ASC; -- Ensure steps are returned in the correct order
+    ORDER BY step_num ASC;
   `;
 
-  // Map SQL rows to an array of step descriptions
-  const steps = stepRows.map((row) => row.description);
+  const steps = stepRows.map((row) => ({
+    recipe_id: recipeId,
+    step_num: row.step_num,
+    description: row.description,
+  }));
 
-  // Return the detailed recipe object
   return {
-    id: recipe.id,
-    title: recipe.title,
-    description: recipe.description,
-    cookingTime: recipe.cookingTime || 0, // Default to 0 if null
-    category: recipe.category || "", // Default to an empty string if null
-    cuisine: recipe.cuisine || [], // Default to an empty array if null
-    dietaryRestrictions: recipe.dietaryRestrictions || [], // Default to an empty array if null
+    ...recipe,
     ingredients,
     steps,
   };
 }
 
-export async function signup(
-  prevState: string | undefined,
-  formData: FormData
-) {
+// Fetch recipe steps
+export async function fetchRecipeSteps(recipeId: number): Promise<RecipeStep[]> {
+  const { rows } = await sql<RecipeStep>`
+    SELECT 
+      recipe_id, 
+      step_num, 
+      description
+    FROM recipe_steps
+    WHERE recipe_id = ${recipeId}
+    ORDER BY step_num ASC;
+  `;
+  return rows;
+}
+
+// Fetch nutrition facts for a recipe
+export async function fetchNutritionFacts(recipeId: number): Promise<NutritionFact | null> {
+  const { rows } = await sql<NutritionFact>`
+    SELECT nutrition_id, recipe_id, calories, proteins, fats
+    FROM nutrition_facts
+    WHERE recipe_id = ${recipeId};
+  `;
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// Fetch ingredients of a recipe
+export async function fetchRecipeIngredients(recipeId: number): Promise<Ingredient[]> {
+  const { rows } = await sql`
+    SELECT i.id, i.name, i.storage_temp
+    FROM ingredients i
+    JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
+    WHERE ri.recipe_id = ${recipeId};
+  `;
+  return rows as Ingredient[];
+}
+
+// Fetch perishable ingredients of a recipe
+export async function fetchPerishableIngredients(recipeId: number): Promise<PerishableIngredient[]> {
+  const { rows } = await sql`
+    SELECT 
+      i.id, 
+      i.name, 
+      i.storage_temp, 
+      pi.shelf_life
+    FROM ingredients i
+    JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
+    JOIN perishable_ingredients pi ON i.id = pi.id
+    WHERE ri.recipe_id = ${recipeId};
+  `;
+  return rows as PerishableIngredient[];
+}
+
+// Fetch allergens for an ingredient
+export async function fetchAllergens(ingredientId: number): Promise<Allergen[]> {
+  const { rows } = await sql`
+    SELECT a.id, a.name
+    FROM allergens a
+    JOIN ingredient_allergens ia ON a.id = ia.allergen_id
+    WHERE ia.ingredient_id = ${ingredientId};
+  `;
+  return rows as Allergen[];
+}
+
+// Fetch categories
+export async function fetchCategories(): Promise<Category[]> {
+  const { rows } = await sql<Category>`
+    SELECT id, name
+    FROM categories;
+  `;
+  return rows;
+}
+
+// Fetch cuisines
+export async function fetchCuisines(): Promise<Cuisine[]> {
+  const { rows } = await sql<Cuisine>`
+    SELECT id, name
+    FROM cuisines;
+  `;
+  return rows;
+}
+
+// Fetch dietary restrictions
+export async function fetchDietaryRestrictions(): Promise<DietaryRestriction[]> {
+  const { rows } = await sql<DietaryRestriction>`
+    SELECT id, name, description
+    FROM dietary_restrictions;
+  `;
+  return rows;
+}
+
+// User signup
+export async function signup(formData: FormData): Promise<string | void> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  // Check if the email already exists
-  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
+  const { rows: existingUser } = await sql`
+    SELECT id
+    FROM users
+    WHERE email = ${email};
+  `;
 
-  if (existingUser.rows.length > 0) {
-    return `This email is already used`;
+  if (existingUser.length > 0) {
+    return "This email is already used.";
   }
 
-  // Hash the password using bcrypt
-  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
+  const hashedPassword = await bcrypt.hash(password, 10);
+  await sql`
+    INSERT INTO users (email, password)
+    VALUES (${email}, ${hashedPassword});
+  `;
 
-  // Store the user in the database with the hashed password
-  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
-
-  // Sign the user in using NextAuth's credentials provider
   await signIn("credentials", {
     redirect: true,
     redirectTo: "/",
@@ -175,14 +245,12 @@ export async function signup(
   });
 }
 
-export async function authenticate(
-  prevState: string | undefined,
-  formData: FormData
-) {
-  try {
-    const email = formData.get("email");
-    const password = formData.get("password");
+// User authentication
+export async function authenticate(formData: FormData): Promise<string | void> {
+  const email = formData.get("email");
+  const password = formData.get("password");
 
+  try {
     await signIn("credentials", {
       redirect: true,
       redirectTo: "/",
@@ -194,5 +262,120 @@ export async function authenticate(
       return "Invalid credentials. Please try again.";
     }
     throw error;
+  }
+}
+
+export async function deleteRecipe(recipeId: number): Promise<string> {
+  try {
+    if (!recipeId) {
+      throw new Error("Recipe ID is required.");
+    }
+
+    await sql`
+      DELETE FROM recipes
+      WHERE id = ${recipeId};
+    `;
+
+    return "Recipe deleted successfully.";
+  } catch (error) {
+    console.error("Error deleting recipe:", error);
+    throw new Error("Failed to delete the recipe. Please try again.");
+  }
+}
+
+export async function numOfRecipesByCategory(): Promise<
+  { category: string; recipe_count: number }[]
+> {
+  try {
+    const { rows } = await sql`
+      SELECT 
+        c.name AS category, 
+        COUNT(r.id) AS recipe_count
+      FROM categories c
+      LEFT JOIN recipe_categories rc ON c.id = rc.category_id
+      LEFT JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY c.name
+      ORDER BY recipe_count DESC; -- Optional: Order by count, descending
+    `;
+
+    return rows.map((row) => ({
+      category: row.category,
+      recipe_count: parseInt(row.recipe_count, 10),
+    }));
+  } catch (error) {
+    console.error("Error fetching recipes by category:", error);
+    throw new Error("Failed to fetch recipes by category.");
+  }
+}
+
+export async function fetchCuisineWithMostPopularRecipes(): Promise<{
+  cuisine: string;
+  average_popularity: number;
+}> {
+  try {
+    const { rows } = await sql`
+      SELECT 
+        cu.name AS cuisine, 
+        AVG(r.popularity) AS average_popularity
+      FROM cuisines cu
+      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY cu.name
+      HAVING AVG(r.popularity) > 0
+      ORDER BY average_popularity DESC
+      LIMIT 1;
+    `;
+
+    if (rows.length === 0) {
+      throw new Error("No cuisines found with popular recipes.");
+    }
+
+    return {
+      cuisine: rows[0].cuisine,
+      average_popularity: parseFloat(rows[0].average_popularity),
+    };
+  } catch (error) {
+    console.error("Error fetching cuisine with the most popular recipes:", error);
+    throw new Error("Failed to fetch cuisine with the most popular recipes.");
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10", 10);
+
+  try {
+    const { rows } = await sql`
+      SELECT id, title, created_at
+      FROM recipes
+      ORDER BY created_at DESC
+      LIMIT ${limit};
+    `;
+
+    return NextResponse.json(rows);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to fetch recent recipes." }, { status: 500 });
+  }
+}
+
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { id, name, email } = await req.json();
+
+    if (!id || (!name && !email)) {
+      return NextResponse.json({ error: "ID and at least one field to update are required." }, { status: 400 });
+    }
+
+    await sql`
+      UPDATE users
+      SET 
+        name = COALESCE(${name}, name),
+        email = COALESCE(${email}, email)
+      WHERE id = ${id};
+    `;
+
+    return NextResponse.json({ message: "User updated successfully." });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to update user." }, { status: 500 });
   }
 }
