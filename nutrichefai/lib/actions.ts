@@ -254,6 +254,7 @@ export async function fetchDietaryRestrictions(): Promise<
   return rows;
 }
 
+//
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
     if (!recipeId) {
@@ -752,4 +753,27 @@ export async function fetchFilteredRecipes(
     throw new Error("Failed to fetch filtered recipes.");
   }
   
+}
+
+// Fetch recipes that include a specific ingredient
+export async function fetchRecipesByIngredient(ingredientName: string): Promise<Record<string, any>[] | null> {
+  try {
+    // Define the SQL query to join recipes, recipe_ingredients, and ingredients tables
+    const query = `
+      SELECT recipes.title, recipes.description, recipes.cooking_time, ingredients.name AS ingredient
+      FROM recipes
+      INNER JOIN recipe_ingredients ON recipes.id = recipe_ingredients.recipe_id
+      INNER JOIN ingredients ON recipe_ingredients.ingredient_id = ingredients.id
+      WHERE ingredients.name = $1;
+    `;
+
+    // Execute the query with the provided ingredient name
+    const { rows } = await db.query(query, [ingredientName]);
+
+    // Return the results or null if no recipes are found
+    return rows.length > 0 ? rows : null;
+  } catch (error) {
+    console.error("Error fetching recipes by ingredient:", error);
+    throw new Error("Failed to fetch recipes by ingredient.");
+  }
 }
