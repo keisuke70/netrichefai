@@ -618,6 +618,45 @@ export async function updateRecipeTitle(recipeId: number, newTitle: string): Pro
   }
 }
 
+// Fetch nutrition facts with toggle options for individual attributes
+// projection function
+export async function fetchCustomNutritionFacts(
+  recipeId: number,
+  showCalories: boolean,
+  showProteins: boolean,
+  showFats: boolean
+): Promise<Record<string, number | null> | null> {
+  try {
+    // Determine which attributes to select based on the boolean flags
+    const selectedAttributes = [];
+    if (showCalories) selectedAttributes.push("calories");
+    if (showProteins) selectedAttributes.push("proteins");
+    if (showFats) selectedAttributes.push("fats");
+
+    // If no attributes are selected, return null immediately
+    if (selectedAttributes.length === 0) {
+      return null;
+    }
+
+    // Build the SQL query dynamically based on selected attributes
+    const query = `
+      SELECT ${selectedAttributes.join(", ")}
+      FROM nutrition_facts
+      WHERE recipe_id = ${recipeId};
+    `;
+
+    // Execute the query
+    const { rows } = await sql<Record<string, number | null>>([query] as unknown as TemplateStringsArray);
+
+    // Return the first row or null if no data exists
+    return rows.length > 0 ? rows[0] : null;
+  } catch (error) {
+    console.error("Error fetching custom nutrition facts:", error);
+    throw new Error("Failed to fetch custom nutrition facts.");
+  }
+}
+
+
 export async function fetchFilteredRecipes(
   userId: number,
   category?: string,
