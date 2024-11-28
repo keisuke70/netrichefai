@@ -552,3 +552,58 @@ export async function authenticate(
     throw error;
   }
 }
+
+export async function fetchUserDietaryRestrictionNames(userId: number): Promise<string[]> {
+  try {
+    const query = `
+      SELECT DISTINCT dr.name
+      FROM dietary_restrictions dr
+      JOIN recipe_dietary_restrictions rdr ON dr.id = rdr.dietary_id
+      JOIN recipes r ON rdr.recipe_id = r.id
+      WHERE r.user_id = $1;
+    `;
+    const { rows } = await sql<{ name: string }>(
+      [query] as unknown as TemplateStringsArray,
+      userId
+    );
+    return rows.map((row) => row.name);
+  } catch (error) {
+    console.error("Error fetching dietary restriction names for user:", error);
+    throw new Error("Failed to fetch dietary restriction names.");
+  }
+}
+
+export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
+  try {
+    const query = `
+      SELECT DISTINCT c.name
+      FROM cuisines c
+      JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      WHERE r.user_id = $1;
+    `;
+    const { rows } = await sql<{ name: string }>([query] as unknown as TemplateStringsArray, userId);
+    return rows.map(row => row.name);
+  } catch (error) {
+    console.error("Error fetching cuisine names for user:", error);
+    throw new Error("Failed to fetch cuisine names.");
+  }
+}
+
+export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<string[]> {
+  try {
+    const query = `
+      SELECT DISTINCT c.name
+      FROM categories c
+      JOIN recipe_categories rc ON c.id = rc.category_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      WHERE r.user_id = ${userId};
+    `;
+
+    const { rows } = await sql<{ name: string }>([query] as unknown as TemplateStringsArray);
+    return rows.map(row => row.name);
+  } catch (error) {
+    console.error("Error fetching unique category names by user ID:", error);
+    throw new Error("Failed to fetch unique category names.");
+  }
+}
