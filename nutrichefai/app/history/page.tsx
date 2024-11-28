@@ -30,13 +30,11 @@ import {
 } from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
 import { Recipe } from "@/lib/definitions";
-
-// Import placeholder data
 import {
-  categories,
-  cuisines,
-  dietaryRestrictions,
-} from "@/lib/placeholder-data";
+  fetchUserCuisineNames,
+  fetchUniqueCategoryNamesByUserId,
+  fetchUserDietaryRestrictionNames,
+} from "@/lib/actions";
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -48,6 +46,9 @@ export default function RecipeHistory() {
   const [cuisineFilter, setCuisineFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dietaryFilter, setDietaryFilter] = useState("all");
+  const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [dietaryOptions, setDietaryOptions] = useState<string[]>([]);
 
   const recipesPerPage = 6;
 
@@ -70,7 +71,24 @@ export default function RecipeHistory() {
         }
       };
 
+      const fetchFilters = async () => {
+        try {
+          const cuisines = await fetchUserCuisineNames(userId);
+          const categories = await fetchUniqueCategoryNamesByUserId(userId);
+          const dietaryRestrictions = await fetchUserDietaryRestrictionNames(
+            userId
+          );
+
+          setCuisineOptions(["All Cuisines", ...cuisines]);
+          setCategoryOptions(["All Categories", ...categories]);
+          setDietaryOptions(["All Diets", ...dietaryRestrictions]);
+        } catch (error) {
+          console.error("Failed to fetch filter data:", error);
+        }
+      };
+
       fetchRecipes();
+      fetchFilters();
     }
   }, [status, session]);
 
@@ -79,38 +97,7 @@ export default function RecipeHistory() {
     setPage(1);
   }, [searchTerm, cuisineFilter, categoryFilter, dietaryFilter]);
 
-  // Build lists for Select options
-  const cuisineOptions = ["All Cuisines", ...cuisines.map((c) => c.name)];
-  const categoryOptions = ["All Categories", ...categories.map((c) => c.name)];
-  const dietaryOptions = [
-    "All Diets",
-    ...dietaryRestrictions.map((d) => d.name),
-  ];
-
   const filteredRecipes = recipes;
-  // Apply filters
-  // const filteredRecipes = recipes.filter((recipe) => {
-  //   const matchesSearchTerm = recipe.title
-  //     .toLowerCase()
-  //     .includes(searchTerm.toLowerCase());
-
-  //   const matchesCuisine =
-  //     cuisineFilter === "all" ||
-  //     (recipe.cuisines && recipe.cuisines.includes(cuisineFilter));
-
-  //   const matchesCategory =
-  //     categoryFilter === "all" ||
-  //     (recipe.category && recipe.category.includes(categoryFilter));
-
-  //   const matchesDietary =
-  //     dietaryFilter === "all" ||
-  //     (recipe.dietaryRestrictions &&
-  //       recipe.dietaryRestrictions.includes(dietaryFilter));
-
-  //   return (
-  //     matchesSearchTerm && matchesCuisine && matchesCategory && matchesDietary
-  //   );
-  // });
 
   const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
 
