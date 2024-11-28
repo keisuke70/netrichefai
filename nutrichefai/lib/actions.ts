@@ -1,6 +1,6 @@
 "use server";
 
-import { sql } from "@vercel/postgres";
+import { sql, db } from "@vercel/postgres";
 import bcrypt from "bcrypt";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
@@ -15,6 +15,7 @@ import {
   Cuisine,
   DietaryRestriction,
 } from "./definitions";
+import format from "pg-format";
 
 // // Fetch user recipes with pagination
 // export async function fetchUserRecipes(
@@ -25,11 +26,11 @@ import {
 //   const offset = (page - 1) * limit;
 
 //   const { rows } = await sql`
-//     SELECT 
-//       r.id, 
-//       r.user_id, 
-//       r.title, 
-//       r.description, 
+//     SELECT
+//       r.id,
+//       r.user_id,
+//       r.title,
+//       r.description,
 //       r.cooking_time AS "cooking_time"
 //     FROM recipes r
 //     WHERE r.user_id = ${userId}
@@ -152,9 +153,10 @@ export async function fetchDetailedRecipe(recipeId: number) {
   };
 }
 
-
 // Fetch recipe steps
-export async function fetchRecipeSteps(recipeId: number): Promise<RecipeStep[]> {
+export async function fetchRecipeSteps(
+  recipeId: number
+): Promise<RecipeStep[]> {
   const { rows } = await sql<RecipeStep>`
     SELECT 
       recipe_id, 
@@ -168,7 +170,9 @@ export async function fetchRecipeSteps(recipeId: number): Promise<RecipeStep[]> 
 }
 
 // Fetch nutrition facts for a recipe
-export async function fetchNutritionFacts(recipeId: number): Promise<NutritionFact | null> {
+export async function fetchNutritionFacts(
+  recipeId: number
+): Promise<NutritionFact | null> {
   const { rows } = await sql<NutritionFact>`
     SELECT nutrition_id, recipe_id, calories, proteins, fats
     FROM nutrition_facts
@@ -178,7 +182,9 @@ export async function fetchNutritionFacts(recipeId: number): Promise<NutritionFa
 }
 
 // Fetch ingredients of a recipe
-export async function fetchRecipeIngredients(recipeId: number): Promise<Ingredient[]> {
+export async function fetchRecipeIngredients(
+  recipeId: number
+): Promise<Ingredient[]> {
   const { rows } = await sql`
     SELECT i.id, i.name, i.storage_temp
     FROM ingredients i
@@ -189,7 +195,9 @@ export async function fetchRecipeIngredients(recipeId: number): Promise<Ingredie
 }
 
 // Fetch perishable ingredients of a recipe
-export async function fetchPerishableIngredients(recipeId: number): Promise<PerishableIngredient[]> {
+export async function fetchPerishableIngredients(
+  recipeId: number
+): Promise<PerishableIngredient[]> {
   const { rows } = await sql`
     SELECT 
       i.id, 
@@ -205,7 +213,9 @@ export async function fetchPerishableIngredients(recipeId: number): Promise<Peri
 }
 
 // Fetch allergens for an ingredient
-export async function fetchAllergens(ingredientId: number): Promise<Allergen[]> {
+export async function fetchAllergens(
+  ingredientId: number
+): Promise<Allergen[]> {
   const { rows } = await sql`
     SELECT a.id, a.name
     FROM allergens a
@@ -234,14 +244,15 @@ export async function fetchCuisines(): Promise<Cuisine[]> {
 }
 
 // Fetch dietary restrictions
-export async function fetchDietaryRestrictions(): Promise<DietaryRestriction[]> {
+export async function fetchDietaryRestrictions(): Promise<
+  DietaryRestriction[]
+> {
   const { rows } = await sql<DietaryRestriction>`
     SELECT id, name, description
     FROM dietary_restrictions;
   `;
   return rows;
 }
-
 
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
@@ -313,7 +324,10 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
       average_popularity: parseFloat(rows[0].average_popularity),
     };
   } catch (error) {
-    console.error("Error fetching cuisine with the most popular recipes:", error);
+    console.error(
+      "Error fetching cuisine with the most popular recipes:",
+      error
+    );
     throw new Error("Failed to fetch cuisine with the most popular recipes.");
   }
 }
@@ -354,14 +368,18 @@ export async function insertRecipe(data: {
 }
 
 // Search recipes based on filters
-export async function searchRecipes(filters: string): Promise<{ id: number; title: string }[]> {
+export async function searchRecipes(
+  filters: string
+): Promise<{ id: number; title: string }[]> {
   try {
     const query = `
       SELECT id, title
       FROM recipes
       WHERE ${filters};
     `;
-    const { rows } = await sql<{ id: number; title: string }>([query] as unknown as TemplateStringsArray);
+    const { rows } = await sql<{ id: number; title: string }>([
+      query,
+    ] as unknown as TemplateStringsArray);
     return rows;
   } catch (error) {
     console.error("Error searching recipes:", error);
@@ -369,24 +387,25 @@ export async function searchRecipes(filters: string): Promise<{ id: number; titl
   }
 }
 
-
-
 // Project recipe attributes
-export async function projectRecipeAttributes(attributes: string[]): Promise<Record<string, any>[]> {
+export async function projectRecipeAttributes(
+  attributes: string[]
+): Promise<Record<string, any>[]> {
   try {
     const selectedAttributes = attributes.join(", ");
     const query = `
       SELECT ${selectedAttributes}
       FROM recipes;
     `;
-    const { rows } = await sql<Record<string, any>>([query] as unknown as TemplateStringsArray);
+    const { rows } = await sql<Record<string, any>>([
+      query,
+    ] as unknown as TemplateStringsArray);
     return rows;
   } catch (error) {
     console.error("Error projecting attributes:", error);
     throw new Error("Failed to project attributes.");
   }
 }
-
 
 // Join recipes and categories
 export async function joinRecipesAndCategories(
@@ -486,7 +505,9 @@ export async function fetchRecipesByDietaryRestrictions(
       GROUP BY r.id
       HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};
     `;
-    const { rows } = await sql<Record<string, any>>([query] as unknown as TemplateStringsArray);
+    const { rows } = await sql<Record<string, any>>([
+      query,
+    ] as unknown as TemplateStringsArray);
     return rows;
   } catch (error) {
     console.error("Error fetching recipes by dietary restrictions:", error);
@@ -553,7 +574,9 @@ export async function authenticate(
   }
 }
 
-export async function fetchUserDietaryRestrictionNames(userId: number): Promise<string[]> {
+export async function fetchUserDietaryRestrictionNames(
+  userId: number
+): Promise<string[]> {
   try {
     const { rows } = await sql`
       SELECT DISTINCT dr.name
@@ -585,7 +608,9 @@ export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
   }
 }
 
-export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<string[]> {
+export async function fetchUniqueCategoryNamesByUserId(
+  userId: number
+): Promise<string[]> {
   try {
     const { rows } = await sql`
       SELECT DISTINCT c.name
@@ -594,14 +619,17 @@ export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<
       JOIN recipes r ON rc.recipe_id = r.id
       WHERE r.user_id = ${userId};
     `;
-    return rows.map(row => row.name);
+    return rows.map((row) => row.name);
   } catch (error) {
     console.error("Error fetching unique category names by user ID:", error);
     throw new Error("Failed to fetch unique category names.");
   }
 }
 
-export async function updateRecipeTitle(recipeId: number, newTitle: string): Promise<number> {
+export async function updateRecipeTitle(
+  recipeId: number,
+  newTitle: string
+): Promise<number> {
   try {
     const result = await sql`
       UPDATE recipes
@@ -614,12 +642,10 @@ export async function updateRecipeTitle(recipeId: number, newTitle: string): Pro
     return updatedRows > 0 ? 1 : 0;
   } catch (error) {
     console.error("Error updating recipe title:", error);
-    return 0; 
+    return 0;
   }
 }
 
-// Fetch nutrition facts with toggle options for individual attributes
-// projection function
 export async function fetchCustomNutritionFacts(
   recipeId: number,
   showCalories: boolean,
@@ -628,7 +654,7 @@ export async function fetchCustomNutritionFacts(
 ): Promise<Record<string, number | null> | null> {
   try {
     // Determine which attributes to select based on the boolean flags
-    const selectedAttributes = [];
+    const selectedAttributes: string[] = [];
     if (showCalories) selectedAttributes.push("calories");
     if (showProteins) selectedAttributes.push("proteins");
     if (showFats) selectedAttributes.push("fats");
@@ -638,15 +664,25 @@ export async function fetchCustomNutritionFacts(
       return null;
     }
 
-    // Build the SQL query dynamically based on selected attributes
-    const query = `
-      SELECT ${selectedAttributes.join(", ")}
-      FROM nutrition_facts
-      WHERE recipe_id = ${recipeId};
-    `;
+    // Validate the selected attributes against allowed columns
+    const validColumns = ["calories", "proteins", "fats"];
+    const columns = selectedAttributes.filter((col) =>
+      validColumns.includes(col)
+    );
 
-    // Execute the query
-    const { rows } = await sql<Record<string, number | null>>([query] as unknown as TemplateStringsArray);
+    if (columns.length === 0) {
+      return null;
+    }
+
+    // Use pg-format to safely format the query with dynamic column names
+    const query = format(
+      "SELECT %I FROM nutrition_facts WHERE recipe_id = %L;",
+      columns,
+      recipeId
+    );
+    const client = await db.connect();
+    // Execute the query using sql.unsafe
+    const { rows } = await client.query(query);
 
     // Return the first row or null if no data exists
     return rows.length > 0 ? rows[0] : null;
@@ -655,7 +691,6 @@ export async function fetchCustomNutritionFacts(
     throw new Error("Failed to fetch custom nutrition facts.");
   }
 }
-
 
 export async function fetchFilteredRecipes(
   userId: number,
@@ -696,7 +731,10 @@ export async function fetchFilteredRecipes(
     `;
 
     // Execute the query
-    const { rows } = await sql<Recipe>([query] as unknown as TemplateStringsArray, ...params);
+    const { rows } = await sql<Recipe>(
+      [query] as unknown as TemplateStringsArray,
+      ...params
+    );
     return rows;
   } catch (error) {
     console.error("Error fetching filtered recipes:", error);

@@ -12,6 +12,7 @@ import {
   ChefHat,
   Info,
 } from "lucide-react";
+import { fetchCustomNutritionFacts } from "@/lib/actions";
 
 type DetailedRecipe = Recipe & {
   category: string[];
@@ -24,11 +25,6 @@ type DetailedRecipe = Recipe & {
     shelf_life?: number | null;
   }[];
   steps: string[];
-  nutritionFacts?: {
-    calories: number;
-    proteins: number;
-    fats: number;
-  };
 };
 
 export default function RecipeDetailPage() {
@@ -40,8 +36,15 @@ export default function RecipeDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [showCalories, setShowCalories] = useState(true);
+  const [showProteins, setShowProteins] = useState(true);
+  const [showFats, setShowFats] = useState(true);
+  const [nutritionFacts, setNutritionFacts] = useState<Record<
+    string,
+    number | null
+  > | null>(null);
+
   useEffect(() => {
-    console.log(id);
     const fetchDetailedRecipe = async () => {
       try {
         setIsLoading(true);
@@ -58,9 +61,26 @@ export default function RecipeDetailPage() {
         setIsLoading(false);
       }
     };
-
     fetchDetailedRecipe();
   }, [id]);
+
+  useEffect(() => {
+    const fetchNutritionFacts = async () => {
+      try {
+        const facts = await fetchCustomNutritionFacts(
+          parseInt(id, 10),
+          showCalories,
+          showProteins,
+          showFats
+        );
+        console.log(facts);
+        setNutritionFacts(facts);
+      } catch (error) {
+        console.error("Error fetching nutrition facts:", error);
+      }
+    };
+    fetchNutritionFacts();
+  }, [id, showCalories, showProteins, showFats]);
 
   if (isLoading) {
     return (
@@ -151,27 +171,70 @@ export default function RecipeDetailPage() {
             </ol>
           </RecipeSection>
 
-          {detailedRecipe.nutritionFacts && (
+          {/* Selection Controls for Nutrition Facts */}
+          <RecipeSection
+            icon={<Info className="w-6 h-6" />}
+            title="Select Nutrition Facts"
+          >
+            <div className="ml-8">
+              <label className="inline-flex items-center mr-4">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={showCalories}
+                  onChange={(e) => setShowCalories(e.target.checked)}
+                />
+                <span className="ml-2">Calories</span>
+              </label>
+              <label className="inline-flex items-center mr-4">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={showProteins}
+                  onChange={(e) => setShowProteins(e.target.checked)}
+                />
+                <span className="ml-2">Proteins</span>
+              </label>
+              <label className="inline-flex items-center mr-4">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={showFats}
+                  onChange={(e) => setShowFats(e.target.checked)}
+                />
+                <span className="ml-2">Fats</span>
+              </label>
+            </div>
+          </RecipeSection>
+
+          {/* Display Nutrition Facts */}
+          {nutritionFacts && Object.keys(nutritionFacts).length > 0 && (
             <RecipeSection
               icon={<Info className="w-6 h-6" />}
               title="Nutrition Facts"
             >
               <div className="grid grid-cols-3 gap-4 text-center">
-                <NutritionFact
-                  label="Calories"
-                  value={detailedRecipe.nutritionFacts.calories}
-                  unit=""
-                />
-                <NutritionFact
-                  label="Proteins"
-                  value={detailedRecipe.nutritionFacts.proteins}
-                  unit="g"
-                />
-                <NutritionFact
-                  label="Fats"
-                  value={detailedRecipe.nutritionFacts.fats}
-                  unit="g"
-                />
+                {nutritionFacts.calories !== undefined && (
+                  <NutritionFact
+                    label="Calories"
+                    value={nutritionFacts.calories as number}
+                    unit=""
+                  />
+                )}
+                {nutritionFacts.proteins !== undefined && (
+                  <NutritionFact
+                    label="Proteins"
+                    value={nutritionFacts.proteins as number}
+                    unit="g"
+                  />
+                )}
+                {nutritionFacts.fats !== undefined && (
+                  <NutritionFact
+                    label="Fats"
+                    value={nutritionFacts.fats as number}
+                    unit="g"
+                  />
+                )}
               </div>
             </RecipeSection>
           )}
