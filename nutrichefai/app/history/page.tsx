@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchRecipeByUser } from "@/lib/actions";
-import { Search, Clock } from "lucide-react";
+import { fetchRecipeByUser, updateRecipeTitle } from "@/lib/actions";
+import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -40,15 +39,15 @@ export default function RecipeHistory() {
   const { data: session, status } = useSession();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [cuisineFilter, setCuisineFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dietaryFilter, setDietaryFilter] = useState("all");
   const [cuisineOptions, setCuisineOptions] = useState<string[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [dietaryOptions, setDietaryOptions] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editedTitle, setEditedTitle] = useState<string>("");
 
   const recipesPerPage = 6;
 
@@ -63,7 +62,6 @@ export default function RecipeHistory() {
         try {
           const fetchedRecipes = await fetchRecipeByUser(userId);
           setRecipes(fetchedRecipes);
-          setTotalCount(fetchedRecipes.length);
         } catch (error) {
           console.error("Failed to fetch recipes:", error);
         } finally {
@@ -95,7 +93,7 @@ export default function RecipeHistory() {
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, cuisineFilter, categoryFilter, dietaryFilter]);
+  }, [cuisineFilter, categoryFilter, dietaryFilter]);
 
   const filteredRecipes = recipes;
 
@@ -110,22 +108,39 @@ export default function RecipeHistory() {
     setRecipes([]);
   };
 
+  const handleEditClick = (recipeId: number, currentTitle: string) => {
+    if (editingId === recipeId) {
+      // Save the new title
+      updateRecipeTitle(recipeId, editedTitle)
+        .then(() => {
+          setRecipes((prevRecipes) =>
+            prevRecipes.map((recipe) =>
+              recipe.id === recipeId
+                ? { ...recipe, title: editedTitle }
+                : recipe
+            )
+          );
+          alert("Recipe title updated successfully!");
+        })
+        .catch((error) => {
+          console.error("Error updating recipe title:", error);
+          alert("Failed to update recipe title.");
+        })
+        .finally(() => {
+          setEditingId(null);
+        });
+    } else {
+      // Enter editing mode
+      setEditingId(recipeId);
+      setEditedTitle(currentTitle);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Recipe History</h1>
 
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <Input
-            type="text"
-            placeholder="Search recipes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-grow"
-          />
-          <Button onClick={() => setSearchTerm("")}>Clear</Button>
-        </div>
-
         <div className="flex flex-col sm:flex-row gap-4">
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
@@ -187,7 +202,36 @@ export default function RecipeHistory() {
                 {currentRecipes.map((recipe) => (
                   <Card key={recipe.id} className="flex flex-col">
                     <CardHeader>
-                      <CardTitle>{recipe.title}</CardTitle>
+                      {editingId === recipe.id ? (
+                        <div className="flex items-center">
+                          <input
+                            type="text"
+                            value={editedTitle}
+                            onChange={(e) => setEditedTitle(e.target.value)}
+                            className="border rounded p-2 mr-2 flex-grow"
+                          />
+                          <button
+                            onClick={() =>
+                              handleEditClick(recipe.id!, recipe.title)
+                            }
+                            className="text-blue-500 hover:underline"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <CardTitle>{recipe.title}</CardTitle>
+                          <button
+                            onClick={() =>
+                              handleEditClick(recipe.id!, recipe.title)
+                            }
+                            className="ml-2 text-blue-500 hover:underline text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
                     </CardHeader>
                     <CardContent className="flex-grow">
                       <p className="text-sm text-gray-600 mb-2">
