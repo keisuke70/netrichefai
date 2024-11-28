@@ -617,7 +617,6 @@ export async function updateRecipeTitle(recipeId: number, newTitle: string): Pro
   }
 }
 
-/*
 export async function fetchFilteredRecipes(
   userId: number,
   category?: string,
@@ -625,8 +624,26 @@ export async function fetchFilteredRecipes(
   dietaryRestriction?: string
 ): Promise<Recipe[]> {
   try {
-    // Define the base query
-    const baseQuery = `
+    // Start with the base query and parameters
+    let filters = "r.user_id = $1";
+    const params: (string | number)[] = [userId];
+
+    // Add dynamic filters
+    if (category) {
+      filters += ` AND c.name = $${params.length + 1}`;
+      params.push(category);
+    }
+    if (cuisine) {
+      filters += ` AND cu.name = $${params.length + 1}`;
+      params.push(cuisine);
+    }
+    if (dietaryRestriction) {
+      filters += ` AND dr.name = $${params.length + 1}`;
+      params.push(dietaryRestriction);
+    }
+
+    // Final query
+    const query = `
       SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
       FROM recipes r
       LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
@@ -635,33 +652,14 @@ export async function fetchFilteredRecipes(
       LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
       LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
       LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE r.user_id = ${userId}
-    `;
-
-    // Dynamically build filters
-    const filters = [];
-    if (category) {
-      filters.push(sql`c.name = ${category}`);
-    }
-    if (cuisine) {
-      filters.push(sql`cu.name = ${cuisine}`);
-    }
-    if (dietaryRestriction) {
-      filters.push(sql`dr.name = ${dietaryRestriction}`);
-    }
-
-    // Add filters to the query
-    const query = sql`
-      ${sql.raw(baseQuery)}
-      ${filters.length > 0 ? sql`AND ${sql.join(filters, sql` AND `)}` : sql``}
+      WHERE ${filters}
     `;
 
     // Execute the query
-    const { rows } = await query;
-    return rows as Recipe[];
+    const { rows } = await sql<Recipe>([query] as unknown as TemplateStringsArray, ...params);
+    return rows;
   } catch (error) {
-    console.error('Error fetching filtered recipes:', error);
-    throw new Error('Failed to fetch filtered recipes.');
+    console.error("Error fetching filtered recipes:", error);
+    throw new Error("Failed to fetch filtered recipes.");
   }
 }
-*/
