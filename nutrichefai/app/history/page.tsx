@@ -1,32 +1,12 @@
+// page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchFilteredRecipes, updateRecipeTitle } from "@/lib/actions";
-import { Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  fetchFilteredRecipes,
+  fetchRecipesByIngredient,
+  updateRecipeTitle,
+} from "@/lib/actions";
 import { useSession } from "next-auth/react";
 import { Recipe } from "@/lib/definitions";
 import {
@@ -34,7 +14,10 @@ import {
   fetchUniqueCategoryNamesByUserId,
   fetchUserDietaryRestrictionNames,
 } from "@/lib/actions";
-import { Input } from "@/components/ui/input";
+import Filters from "../component/Filters";
+import RecipeList from "../component/RecipeList";
+import PaginationControls from "../component/PaginationControls";
+import ClearHistoryDialog from "../component/ClearHistoryDialog";
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -80,7 +63,7 @@ export default function RecipeHistory() {
     }
   }, [status, session]);
 
-  // Fetch recipes whenever filters change
+  // Fetch recipes whenever filters or search term change
   useEffect(() => {
     if (status === "loading") return;
 
@@ -90,13 +73,22 @@ export default function RecipeHistory() {
       const fetchRecipes = async () => {
         setIsLoading(true);
         try {
-          const fetchedRecipes = await fetchFilteredRecipes(
-            userId,
-            categoryFilter !== "all" ? categoryFilter : undefined,
-            cuisineFilter !== "all" ? cuisineFilter : undefined,
-            dietaryFilter !== "all" ? dietaryFilter : undefined
-          );
-          setRecipes(fetchedRecipes);
+          let fetchedRecipes: Recipe[] = [];
+
+          if (searchTerm.trim() !== "") {
+            // Call fetchRecipesByIngredient if searchTerm is not empty
+            fetchedRecipes = await fetchRecipesByIngredient(searchTerm.trim());
+          } else {
+            // Otherwise, fetch filtered recipes as before
+            fetchedRecipes = await fetchFilteredRecipes(
+              userId,
+              categoryFilter !== "all" ? categoryFilter : undefined,
+              cuisineFilter !== "all" ? cuisineFilter : undefined,
+              dietaryFilter !== "all" ? dietaryFilter : undefined
+            );
+          }
+
+          setRecipes(fetchedRecipes || []);
         } catch (error) {
           console.error("Failed to fetch recipes:", error);
         } finally {
@@ -106,12 +98,19 @@ export default function RecipeHistory() {
 
       fetchRecipes();
     }
-  }, [status, session, cuisineFilter, categoryFilter, dietaryFilter]);
+  }, [
+    status,
+    session,
+    cuisineFilter,
+    categoryFilter,
+    dietaryFilter,
+    searchTerm,
+  ]);
 
-  // Reset page to 1 when filters change
+  // Reset page to 1 when filters or search term change
   useEffect(() => {
     setPage(1);
-  }, [cuisineFilter, categoryFilter, dietaryFilter]);
+  }, [cuisineFilter, categoryFilter, dietaryFilter, searchTerm]);
 
   const totalPages = Math.ceil(recipes.length / recipesPerPage);
 
@@ -156,68 +155,19 @@ export default function RecipeHistory() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Recipe History</h1>
 
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <Input
-            type="text"
-            placeholder="Search recipes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-grow"
-          />
-          <Button onClick={() => setSearchTerm("")}>Clear</Button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Cuisine" />
-            </SelectTrigger>
-            <SelectContent>
-              {cuisineOptions.map((cuisine, index) => (
-                <SelectItem
-                  key={index}
-                  value={cuisine === "All Cuisines" ? "all" : cuisine}
-                >
-                  {cuisine}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categoryOptions.map((category, index) => (
-                <SelectItem
-                  key={index}
-                  value={category === "All Categories" ? "all" : category}
-                >
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Dietary Restrictions" />
-            </SelectTrigger>
-            <SelectContent>
-              {dietaryOptions.map((diet, index) => (
-                <SelectItem
-                  key={index}
-                  value={diet === "All Diets" ? "all" : diet}
-                >
-                  {diet}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Filters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        cuisineFilter={cuisineFilter}
+        setCuisineFilter={setCuisineFilter}
+        cuisineOptions={cuisineOptions}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        categoryOptions={categoryOptions}
+        dietaryFilter={dietaryFilter}
+        setDietaryFilter={setDietaryFilter}
+        dietaryOptions={dietaryOptions}
+      />
 
       {isLoading ? (
         <div>Loading recipes...</div>
@@ -225,79 +175,20 @@ export default function RecipeHistory() {
         <div>
           {recipes.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {currentRecipes.map((recipe) => (
-                  <Card key={recipe.id} className="flex flex-col">
-                    <CardHeader>
-                      {editingId === recipe.id ? (
-                        <div className="flex items-center">
-                          <input
-                            type="text"
-                            value={editedTitle}
-                            onChange={(e) => setEditedTitle(e.target.value)}
-                            className="border rounded p-2 mr-2 flex-grow"
-                          />
-                          <button
-                            onClick={() =>
-                              handleEditClick(recipe.id!, recipe.title)
-                            }
-                            className="text-blue-500 hover:underline"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <CardTitle>{recipe.title}</CardTitle>
-                          <button
-                            onClick={() =>
-                              handleEditClick(recipe.id!, recipe.title)
-                            }
-                            className="ml-2 text-blue-500 hover:underline text-sm"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <p className="text-sm text-gray-600 mb-2">
-                        {recipe.description}
-                      </p>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Clock className="h-4 w-4 mr-1" />
-                        <span>{recipe.cooking_time} mins</span>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button asChild className="w-full">
-                        <a href={`/recipe/${recipe.id}`}>View Recipe</a>
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+              <RecipeList
+                recipes={currentRecipes}
+                editingId={editingId}
+                setEditingId={setEditingId}
+                editedTitle={editedTitle}
+                setEditedTitle={setEditedTitle}
+                handleEditClick={handleEditClick}
+              />
 
-              {/* Pagination Controls */}
-              <div className="flex justify-center items-center gap-4">
-                <Button
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <span>
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  onClick={() =>
-                    setPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={page === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
+              <PaginationControls
+                page={page}
+                setPage={setPage}
+                totalPages={totalPages}
+              />
             </>
           ) : (
             <div>No recipes found.</div>
@@ -307,28 +198,7 @@ export default function RecipeHistory() {
 
       {recipes.length > 0 && (
         <div className="mt-8">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="destructive">Clear History</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Clear Recipe History</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to clear your entire recipe history?
-                  This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => {}}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={clearHistory}>
-                  Clear History
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ClearHistoryDialog clearHistory={clearHistory} />
         </div>
       )}
     </div>
