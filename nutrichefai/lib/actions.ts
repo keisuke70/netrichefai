@@ -607,3 +607,65 @@ export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<
     throw new Error("Failed to fetch unique category names.");
   }
 }
+
+export async function updateRecipeTitle(recipeId: number, newTitle: string): Promise<number> {
+  try {
+    const query = `
+      UPDATE recipes
+      SET title = $1
+      WHERE id = $2;
+    `;
+    const result = await sql([query] as unknown as TemplateStringsArray, newTitle, recipeId);
+
+    return (result.rowCount ?? 0) > 0 ? 1 : 0;
+  } catch (error) {
+    console.error("Error updating recipe title:", error);
+    return 0; // Return 0 in case of an error
+  }
+}
+
+export async function fetchFilteredRecipes(
+  userId: number,
+  category?: string,
+  cuisine?: string,
+  dietaryRestriction?: string
+): Promise<Recipe[]> {
+  try {
+    // Base query
+    let query = `
+      SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
+      FROM recipes r
+      LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
+      LEFT JOIN categories c ON rc.category_id = c.id
+      LEFT JOIN recipe_cuisines rcu ON r.id = rcu.recipe_id
+      LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
+      LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+      LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+      WHERE r.user_id = $1
+    `;
+
+    // Parameters for the query
+    const params: (string | number)[] = [userId];
+
+    // Add filters dynamically if provided
+    if (category) {
+      query += ` AND c.name = $${params.length + 1}`;
+      params.push(category);
+    }
+    if (cuisine) {
+      query += ` AND cu.name = $${params.length + 1}`;
+      params.push(cuisine);
+    }
+    if (dietaryRestriction) {
+      query += ` AND dr.name = $${params.length + 1}`;
+      params.push(dietaryRestriction);
+    }
+
+    // Execute the query
+    const { rows } = await sql<Recipe>(query, ...params);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching filtered recipes:", error);
+    throw new Error("Failed to fetch filtered recipes.");
+  }
+}
