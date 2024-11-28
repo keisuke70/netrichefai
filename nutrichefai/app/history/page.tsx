@@ -49,6 +49,8 @@ export default function RecipeHistory() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dietaryFilter, setDietaryFilter] = useState("all");
 
+  const recipesPerPage = 6;
+
   useEffect(() => {
     if (status === "loading") return;
 
@@ -58,11 +60,9 @@ export default function RecipeHistory() {
       const fetchRecipes = async () => {
         setIsLoading(true);
         try {
-          const recipes = await fetchRecipeByUser(
-            userId!
-          );
-          setRecipes(recipes);
-          setTotalCount(recipes.length);
+          const fetchedRecipes = await fetchRecipeByUser(userId);
+          setRecipes(fetchedRecipes);
+          setTotalCount(fetchedRecipes.length);
         } catch (error) {
           console.error("Failed to fetch recipes:", error);
         } finally {
@@ -72,13 +72,12 @@ export default function RecipeHistory() {
 
       fetchRecipes();
     }
-  }, [status, session, page]);
+  }, [status, session]);
 
-  const totalPages = Math.ceil(totalCount / 6);
-
-  const clearHistory = () => {
-    setRecipes([]);
-  };
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, cuisineFilter, categoryFilter, dietaryFilter]);
 
   // Build lists for Select options
   const cuisineOptions = ["All Cuisines", ...cuisines.map((c) => c.name)];
@@ -88,16 +87,41 @@ export default function RecipeHistory() {
     ...dietaryRestrictions.map((d) => d.name),
   ];
 
-  // const filteredRecipes = recipes.filter(
-  //   (recipe) =>
-  //     recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-  //     (cuisineFilter === "all" || recipe.cuisines.includes(cuisineFilter)) &&
-  //     (categoryFilter === "all" || recipe.category.includes(categoryFilter)) &&
-  //     (dietaryFilter === "all" ||
-  //       recipe.dietaryRestrictions.includes(dietaryFilter))
-  // );
+  const filteredRecipes = recipes;
+  // Apply filters
+  // const filteredRecipes = recipes.filter((recipe) => {
+  //   const matchesSearchTerm = recipe.title
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase());
 
-  const filteredRecipes = recipes; // No filtering for now
+  //   const matchesCuisine =
+  //     cuisineFilter === "all" ||
+  //     (recipe.cuisines && recipe.cuisines.includes(cuisineFilter));
+
+  //   const matchesCategory =
+  //     categoryFilter === "all" ||
+  //     (recipe.category && recipe.category.includes(categoryFilter));
+
+  //   const matchesDietary =
+  //     dietaryFilter === "all" ||
+  //     (recipe.dietaryRestrictions &&
+  //       recipe.dietaryRestrictions.includes(dietaryFilter));
+
+  //   return (
+  //     matchesSearchTerm && matchesCuisine && matchesCategory && matchesDietary
+  //   );
+  // });
+
+  const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
+
+  // Get current recipes for the page
+  const startIndex = (page - 1) * recipesPerPage;
+  const endIndex = startIndex + recipesPerPage;
+  const currentRecipes = filteredRecipes.slice(startIndex, endIndex);
+
+  const clearHistory = () => {
+    setRecipes([]);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -116,7 +140,6 @@ export default function RecipeHistory() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
-   
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Cuisine" />
@@ -133,7 +156,6 @@ export default function RecipeHistory() {
             </SelectContent>
           </Select>
 
-   
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Category" />
@@ -175,7 +197,7 @@ export default function RecipeHistory() {
           {filteredRecipes.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {filteredRecipes.map((recipe) => (
+                {currentRecipes.map((recipe) => (
                   <Card key={recipe.id} className="flex flex-col">
                     <CardHeader>
                       <CardTitle>{recipe.title}</CardTitle>
