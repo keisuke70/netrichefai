@@ -664,26 +664,21 @@ export async function fetchFilteredRecipes(
   dietaryRestriction?: string
 ): Promise<Recipe[]> {
   try {
-    // Start with the base query and parameters
-    let filters = "r.user_id = $1";
-    const params: (string | number)[] = [userId];
-
+    let query= "";
+    // Define the base query
     // Add dynamic filters
     if (category) {
-      filters += ` AND c.name = $${params.length + 1}`;
-      params.push(category);
+      query += ` AND c.name = $${category}`;
     }
     if (cuisine) {
-      filters += ` AND cu.name = $${params.length + 1}`;
-      params.push(cuisine);
+      query += ` AND cu.name = $${cuisine}`;
     }
     if (dietaryRestriction) {
-      filters += ` AND dr.name = $${params.length + 1}`;
-      params.push(dietaryRestriction);
+      query += ` AND dr.name = $${dietaryRestriction}`;
     }
 
-    // Final query
-    const query = `
+    // Execute the query with sql template
+    const { rows } = await sql<Recipe>`
       SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
       FROM recipes r
       LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
@@ -692,11 +687,8 @@ export async function fetchFilteredRecipes(
       LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
       LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
       LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE ${filters}
+      WHERE r.user_id = ${userId} ${query}
     `;
-
-    // Execute the query
-    const { rows } = await sql<Recipe>([query] as unknown as TemplateStringsArray, ...params);
     return rows;
   } catch (error) {
     console.error("Error fetching filtered recipes:", error);
