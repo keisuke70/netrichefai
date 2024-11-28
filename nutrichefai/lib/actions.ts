@@ -1,6 +1,6 @@
 "use server";
 
-import { sql, db } from "@vercel/postgres";
+import { sql } from "@vercel/postgres";
 import bcrypt from "bcrypt";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
@@ -427,6 +427,7 @@ export async function joinRecipesAndCategories(
 }
 
 // Get recipes grouped by cuisine
+// 2.17 Aggregation with GROUP BY
 export async function getRecipesGroupedByCuisine(): Promise<
   { cuisine: string; recipe_count: number }[]
 > {
@@ -447,6 +448,7 @@ export async function getRecipesGroupedByCuisine(): Promise<
 }
 
 // Get popular cuisines with minimum popularity
+// ?????
 export async function getPopularCuisines(
   minPopularity: number
 ): Promise<{ cuisine: string; average_popularity: number }[]> {
@@ -468,6 +470,7 @@ export async function getPopularCuisines(
 }
 
 // Get cuisines with popularity above global average
+//  Create a button or dropdown in the frontend 
 export async function getCuisinesAboveGlobalAverage(): Promise<
   { cuisine: string; average_popularity: number }[]
 > {
@@ -692,6 +695,7 @@ export async function fetchCustomNutritionFacts(
   }
 }
 
+
 export async function fetchFilteredRecipes(
   userId: number,
   category?: string,
@@ -747,4 +751,5 @@ export async function fetchFilteredRecipes(
     console.error("Error fetching filtered recipes:", error);
     throw new Error("Failed to fetch filtered recipes.");
   }
+  
 }
