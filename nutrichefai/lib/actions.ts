@@ -1,7 +1,6 @@
 "use server";
 
 import { sql } from "@vercel/postgres";
-import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
@@ -67,65 +66,92 @@ export async function fetchRecipeByUser(userId: number): Promise<Recipe[]> {
   return rows;
 }
 
-// Fetch detailed recipe information
+// Example implementation (you'll need to adjust this to match your schema)
 export async function fetchDetailedRecipe(recipeId: number) {
-  const { rows: recipeRows } = await sql`
-    SELECT 
-      r.id, 
-      r.user_id, 
-      r.title, 
-      r.description, 
-      r.cooking_time AS "cooking_time"
-    FROM recipes r
-    WHERE r.id = ${recipeId};
+  // Fetch basic recipe info
+  const recipeResult = await sql`
+    SELECT * FROM recipes WHERE id = ${recipeId};
   `;
+  const recipe = recipeResult.rows[0] as Recipe;
 
-  if (recipeRows.length === 0) {
-    throw new Error(`Recipe with ID ${recipeId} not found.`);
+  if (!recipe) {
+    throw new Error("Recipe not found");
   }
 
-  const recipe = recipeRows[0];
-
-  const { rows: ingredientRows } = await sql`
-    SELECT 
-      i.id,
-      i.name,
-      i.storage_temp,
-      COALESCE(ARRAY_AGG(DISTINCT a.name), '{}') AS allergens
-    FROM recipe_ingredients ri
-    JOIN ingredients i ON ri.ingredient_id = i.id
-    LEFT JOIN ingredient_allergens ia ON i.id = ia.ingredient_id
-    LEFT JOIN allergens a ON ia.allergen_id = a.id
-    WHERE ri.recipe_id = ${recipeId}
-    GROUP BY i.id;
+  // Fetch categories
+  const categoriesResult = await sql`
+    SELECT c.name FROM categories c
+    JOIN recipe_categories rc ON c.id = rc.category_id
+    WHERE rc.recipe_id = ${recipeId};
   `;
+  const recipeCategories = categoriesResult.rows.map((row) => row.name);
 
-  const ingredients = ingredientRows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    storage_temp: row.storage_temp,
-    allergens: row.allergens || [],
-  }));
+  // Fetch cuisines
+  const cuisinesResult = await sql`
+    SELECT cu.name FROM cuisines cu
+    JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+    WHERE rc.recipe_id = ${recipeId};
+  `;
+  const recipeCuisines = cuisinesResult.rows.map((row) => row.name);
 
-  const { rows: stepRows } = await sql`
-    SELECT step_num, description
-    FROM recipe_steps
+  // Fetch dietary restrictions
+  const dietaryResult = await sql`
+    SELECT d.name FROM dietary_restrictions d
+    JOIN recipe_dietary_restrictions rdr ON d.id = rdr.dietary_id
+    WHERE rdr.recipe_id = ${recipeId};
+  `;
+  const recipeDietaryRestrictions = dietaryResult.rows.map((row) => row.name);
+
+  // Fetch ingredients and their allergens
+  const ingredientsResult = await sql`
+    SELECT i.id, i.name, i.storage_temp, pi.shelf_life FROM ingredients i
+    JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
+    LEFT JOIN perishable_ingredients pi ON i.id = pi.id
+    WHERE ri.recipe_id = ${recipeId};
+  `;
+  const ingredients = await Promise.all(
+    ingredientsResult.rows.map(async (ingredient) => {
+      const allergensResult = await sql`
+        SELECT a.name FROM allergens a
+        JOIN ingredient_allergens ia ON a.id = ia.allergen_id
+        WHERE ia.ingredient_id = ${ingredient.id};
+      `;
+      const allergens = allergensResult.rows.map((row) => row.name);
+      return {
+        name: ingredient.name,
+        allergens,
+        storage_temp: ingredient.storage_temp,
+        shelf_life: ingredient.shelf_life,
+      };
+    })
+  );
+
+  // Fetch steps
+  const stepsResult = await sql`
+    SELECT description FROM recipe_steps
     WHERE recipe_id = ${recipeId}
-    ORDER BY step_num ASC;
+    ORDER BY step_num;
   `;
+  const steps = stepsResult.rows.map((row) => row.description);
 
-  const steps = stepRows.map((row) => ({
-    recipe_id: recipeId,
-    step_num: row.step_num,
-    description: row.description,
-  }));
+  // Fetch nutrition facts
+  const nutritionResult = await sql`
+    SELECT calories, proteins, fats FROM nutrition_facts
+    WHERE recipe_id = ${recipeId};
+  `;
+  const nutritionFacts = nutritionResult.rows[0] || null;
 
   return {
     ...recipe,
+    category: recipeCategories,
+    cuisines: recipeCuisines,
+    dietaryRestrictions: recipeDietaryRestrictions,
     ingredients,
     steps,
+    nutritionFacts,
   };
 }
+
 
 // Fetch recipe steps
 export async function fetchRecipeSteps(recipeId: number): Promise<RecipeStep[]> {
@@ -217,56 +243,6 @@ export async function fetchDietaryRestrictions(): Promise<DietaryRestriction[]> 
 }
 
 
-export async function signup(
-  prevState: string | undefined,
-  formData: FormData
-) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  // Check if the email already exists
-  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
-
-  if (existingUser.rows.length > 0) {
-    return `This email is already used`;
-  }
-
-  // Hash the password using bcrypt
-  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
-
-  // Store the user in the database with the hashed password
-  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
-
-  // Sign the user in using NextAuth's credentials provider
-  await signIn("credentials", {
-    redirect: true,
-    redirectTo: "/",
-    email,
-    password,
-  });
-}
-
-export async function authenticate(
-  prevState: string | undefined,
-  formData: FormData
-) {
-  try {
-    const email = formData.get("email");
-    const password = formData.get("password");
-
-    await signIn("credentials", {
-      redirect: true,
-      redirectTo: "/",
-      email,
-      password,
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return "Invalid credentials. Please try again.";
-    }
-    throw error;
-  }
-}
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
     if (!recipeId) {
@@ -515,5 +491,64 @@ export async function fetchRecipesByDietaryRestrictions(
   } catch (error) {
     console.error("Error fetching recipes by dietary restrictions:", error);
     throw new Error("Failed to fetch recipes by dietary restrictions.");
+  }
+}
+
+export async function detailedRecipeExists(recipeId: number): Promise<boolean> {
+  const stepsResult = await sql`
+    SELECT 1 FROM recipe_steps WHERE recipe_id = ${recipeId} LIMIT 1;
+  `;
+  return stepsResult.rows.length > 0;
+}
+
+// Don't touch below
+export async function signup(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  // Check if the email already exists
+  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
+
+  if (existingUser.rows.length > 0) {
+    return `This email is already used`;
+  }
+
+  // Hash the password using bcrypt
+  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
+
+  // Store the user in the database with the hashed password
+  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
+
+  // Sign the user in using NextAuth's credentials provider
+  await signIn("credentials", {
+    redirect: true,
+    redirectTo: "/",
+    email,
+    password,
+  });
+}
+
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  try {
+    const email = formData.get("email");
+    const password = formData.get("password");
+
+    await signIn("credentials", {
+      redirect: true,
+      redirectTo: "/",
+      email,
+      password,
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return "Invalid credentials. Please try again.";
+    }
+    throw error;
   }
 }

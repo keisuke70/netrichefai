@@ -1,3 +1,4 @@
+// Import statements
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { sql } from "@vercel/postgres";
@@ -9,11 +10,16 @@ import {
   dietaryRestrictions,
 } from "@/lib/placeholder-data";
 import { Recipe } from "@/lib/definitions";
+import { fetchDetailedRecipe, detailedRecipeExists } from "@/lib/actions";
 
+// Implement fetchDetailedRecipe function
+
+// OpenAI initialization
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Define the detailed recipe schema
 const detailedRecipeSchema = z.object({
   category: z.array(z.string()),
   cuisines: z.array(z.string()),
@@ -36,6 +42,7 @@ const detailedRecipeSchema = z.object({
     .optional(),
 });
 
+// GET handler
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const recipeId = searchParams.get("id");
@@ -57,6 +64,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
     }
 
+    // Check if detailed info already exists
+    const detailedExists = await detailedRecipeExists(Number(recipeId));
+
+    if (detailedExists) {
+      // Fetch detailed info from database
+      const detailedRecipe = await fetchDetailedRecipe(Number(recipeId));
+      return NextResponse.json(detailedRecipe, { status: 200 });
+    }
+
     // Prepare lists for the prompt
     const categoriesList = categories.map((c) => c.name).join(", ");
     const cuisinesList = cuisines.map((c) => c.name).join(", ");
@@ -64,6 +80,7 @@ export async function GET(req: NextRequest) {
       .map((d) => d.name)
       .join(", ");
 
+    // Generate detailed recipe using OpenAI
     const completion = await openai.beta.chat.completions.parse({
       model: "gpt-4o-mini",
       messages: [
@@ -250,6 +267,7 @@ Example format:
         `;
       })
     );
+
     // Insert nutrition facts
     if (nutritionFacts) {
       const { calories, proteins, fats } = nutritionFacts;
@@ -263,7 +281,9 @@ Example format:
       `;
     }
 
-    return NextResponse.json({ ...recipe, ...detailedInfo }, { status: 200 });
+    // Fetch and return the detailed recipe
+    const detailedRecipe = await fetchDetailedRecipe(Number(recipeId));
+    return NextResponse.json(detailedRecipe, { status: 200 });
   } catch (error) {
     console.error("Error generating detailed recipe:", error);
     return NextResponse.json(
