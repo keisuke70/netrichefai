@@ -699,21 +699,8 @@ export async function fetchFilteredRecipes(
   dietaryRestriction?: string
 ): Promise<Recipe[]> {
   try {
-    let query= "";
-    // Define the base query
-    // Add dynamic filters
-    if (category) {
-      query += ` AND c.name = $${category}`;
-    }
-    if (cuisine) {
-      query += ` AND cu.name = $${cuisine}`;
-    }
-    if (dietaryRestriction) {
-      query += ` AND dr.name = $${dietaryRestriction}`;
-    }
-
-    // Execute the query with sql template
-    const { rows } = await sql<Recipe>`
+    // Initialize the base query and parameters array
+    let baseQuery = `
       SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
       FROM recipes r
       LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
@@ -722,8 +709,39 @@ export async function fetchFilteredRecipes(
       LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
       LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
       LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE r.user_id = ${userId} ${query}
+      WHERE r.user_id = %L
     `;
+    const queryParams: any[] = [userId];
+
+    // Collect conditions
+    const conditions: string[] = [];
+
+    if (category) {
+      conditions.push("c.name = %L");
+      queryParams.push(category);
+    }
+    if (cuisine) {
+      conditions.push("cu.name = %L");
+      queryParams.push(cuisine);
+    }
+    if (dietaryRestriction) {
+      conditions.push("dr.name = %L");
+      queryParams.push(dietaryRestriction);
+    }
+
+    // If there are additional conditions, append them to the base query
+    if (conditions.length > 0) {
+      const whereClause = conditions.join(" AND ");
+      baseQuery += ` AND ${whereClause}`;
+    }
+
+    // Use pg-format to safely format the query with parameters
+    const formattedQuery = format(baseQuery, ...queryParams);
+
+    const client = await db.connect();
+    // Execute the query using sql.unsafe
+    const { rows } = await client.query(formattedQuery);
+
     return rows;
   } catch (error) {
     console.error("Error fetching filtered recipes:", error);
