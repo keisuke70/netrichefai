@@ -766,9 +766,14 @@ export async function fetchRecipesByIngredient(ingredientName: string): Promise<
       INNER JOIN ingredients ON recipe_ingredients.ingredient_id = ingredients.id
       WHERE ingredients.name = $1;
     `;
-
     // Execute the query with the provided ingredient name
-    const { rows } = await db.query(query, [ingredientName]);
+    const { rows } = await sql`
+      SELECT recipes.title, recipes.description, recipes.cooking_time, ingredients.name AS ingredient
+      FROM recipes
+      INNER JOIN recipe_ingredients ON recipes.id = recipe_ingredients.recipe_id
+      INNER JOIN ingredients ON recipe_ingredients.ingredient_id = ingredients.id
+      WHERE ingredients.name = ${ingredientName};
+    `;
 
     // Return the results or null if no recipes are found
     return rows.length > 0 ? rows : null;

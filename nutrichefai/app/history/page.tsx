@@ -34,6 +34,7 @@ import {
   fetchUniqueCategoryNamesByUserId,
   fetchUserDietaryRestrictionNames,
 } from "@/lib/actions";
+import { Input } from "@/components/ui/input";
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -48,6 +49,7 @@ export default function RecipeHistory() {
   const [dietaryOptions, setDietaryOptions] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editedTitle, setEditedTitle] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const recipesPerPage = 6;
 
@@ -155,6 +157,17 @@ export default function RecipeHistory() {
       <h1 className="text-3xl font-bold mb-8">Recipe History</h1>
 
       <div className="mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <Input
+            type="text"
+            placeholder="Search recipes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-grow"
+          />
+          <Button onClick={() => setSearchTerm("")}>Clear</Button>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4">
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
