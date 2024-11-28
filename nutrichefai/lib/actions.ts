@@ -392,44 +392,44 @@ export async function insertRecipe(data: {
 //   }
 // }
 
-// Project recipe attributes
-export async function projectRecipeAttributes(
-  attributes: string[]
-): Promise<Record<string, any>[]> {
-  try {
-    const selectedAttributes = attributes.join(", ");
-    const query = `
-      SELECT ${selectedAttributes}
-      FROM recipes;
-    `;
-    const { rows } = await sql<Record<string, any>>([
-      query,
-    ] as unknown as TemplateStringsArray);
-    return rows;
-  } catch (error) {
-    console.error("Error projecting attributes:", error);
-    throw new Error("Failed to project attributes.");
-  }
-}
+// // Project recipe attributes
+// export async function projectRecipeAttributes(
+//   attributes: string[]
+// ): Promise<Record<string, any>[]> {
+//   try {
+//     const selectedAttributes = attributes.join(", ");
+//     const query = `
+//       SELECT ${selectedAttributes}
+//       FROM recipes;
+//     `;
+//     const { rows } = await sql<Record<string, any>>([
+//       query,
+//     ] as unknown as TemplateStringsArray);
+//     return rows;
+//   } catch (error) {
+//     console.error("Error projecting attributes:", error);
+//     throw new Error("Failed to project attributes.");
+//   }
+// }
 
-// Join recipes and categories
-export async function joinRecipesAndCategories(
-  categoryId: number
-): Promise<{ recipe: string; category: string }[]> {
-  try {
-    const { rows } = await sql<{ recipe: string; category: string }>`
-      SELECT r.title AS recipe, c.name AS category
-      FROM recipes r
-      JOIN recipe_categories rc ON r.id = rc.recipe_id
-      JOIN categories c ON rc.category_id = c.id
-      WHERE c.id = ${categoryId};
-    `;
-    return rows;
-  } catch (error) {
-    console.error("Error joining recipes and categories:", error);
-    throw new Error("Failed to join recipes and categories.");
-  }
-}
+// // Join recipes and categories
+// export async function joinRecipesAndCategories(
+//   categoryId: number
+// ): Promise<{ recipe: string; category: string }[]> {
+//   try {
+//     const { rows } = await sql<{ recipe: string; category: string }>`
+//       SELECT r.title AS recipe, c.name AS category
+//       FROM recipes r
+//       JOIN recipe_categories rc ON r.id = rc.recipe_id
+//       JOIN categories c ON rc.category_id = c.id
+//       WHERE c.id = ${categoryId};
+//     `;
+//     return rows;
+//   } catch (error) {
+//     console.error("Error joining recipes and categories:", error);
+//     throw new Error("Failed to join recipes and categories.");
+//   }
+// }
 
 // Get recipes grouped by cuisine
 // 2.17 Aggregation with GROUP BY
@@ -452,30 +452,31 @@ export async function getRecipesGroupedByCuisine(): Promise<
   }
 }
 
-// Get popular cuisines with minimum popularity
-// ?????
-export async function getPopularCuisines(
-  minPopularity: number
-): Promise<{ cuisine: string; average_popularity: number }[]> {
-  try {
-    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
-      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
-      FROM cuisines cu
-      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      HAVING AVG(r.popularity) > ${minPopularity}
-      ORDER BY average_popularity DESC;
-    `;
-    return rows;
-  } catch (error) {
-    console.error("Error fetching popular cuisines:", error);
-    throw new Error("Failed to fetch popular cuisines.");
-  }
-}
+// // Get popular cuisines with minimum popularity
+// // ?????
+// export async function getPopularCuisines(
+//   minPopularity: number
+// ): Promise<{ cuisine: string; average_popularity: number }[]> {
+//   try {
+//     const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
+//       SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
+//       FROM cuisines cu
+//       JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+//       JOIN recipes r ON rc.recipe_id = r.id
+//       GROUP BY cu.name
+//       HAVING AVG(r.popularity) > ${minPopularity}
+//       ORDER BY average_popularity DESC;
+//     `;
+//     return rows;
+//   } catch (error) {
+//     console.error("Error fetching popular cuisines:", error);
+//     throw new Error("Failed to fetch popular cuisines.");
+//   }
+// }
 
 // Get cuisines with popularity above global average
 //  Create a button or dropdown in the frontend 
+// 2.1.9
 export async function getCuisinesAboveGlobalAverage(): Promise<
   { cuisine: string; average_popularity: number }[]
 > {
@@ -498,6 +499,7 @@ export async function getCuisinesAboveGlobalAverage(): Promise<
   }
 }
 
+// maybe for division function
 export async function fetchRecipesByDietaryRestrictions(
   restrictions: string[]
 ): Promise<Record<string, any>[]> {
@@ -560,6 +562,7 @@ export async function signup(
   });
 }
 
+// Don't touch below
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData
@@ -582,6 +585,7 @@ export async function authenticate(
   }
 }
 
+// for selecting options, we need this
 export async function fetchUserDietaryRestrictionNames(
   userId: number
 ): Promise<string[]> {
@@ -600,6 +604,7 @@ export async function fetchUserDietaryRestrictionNames(
   }
 }
 
+// for selecting options, we need this
 export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
   try {
     const { rows } = await sql`
@@ -616,6 +621,8 @@ export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
   }
 }
 
+
+// for selecting options, we need this
 export async function fetchUniqueCategoryNamesByUserId(
   userId: number
 ): Promise<string[]> {
@@ -634,6 +641,7 @@ export async function fetchUniqueCategoryNamesByUserId(
   }
 }
 
+// 2.1.2 update
 export async function updateRecipeTitle(
   recipeId: number,
   newTitle: string
@@ -654,6 +662,7 @@ export async function updateRecipeTitle(
   }
 }
 
+// 2.1.5 projection
 export async function fetchCustomNutritionFacts(
   recipeId: number,
   showCalories: boolean,
@@ -700,7 +709,7 @@ export async function fetchCustomNutritionFacts(
   }
 }
 
-
+// 2.1.4 Selection
 export async function fetchFilteredRecipes(
   userId: number,
   category?: string,
@@ -760,6 +769,7 @@ export async function fetchFilteredRecipes(
 }
 
 // Fetch recipes that include a specific ingredient
+// 2.1.6 Join
 export async function fetchRecipesByIngredient(ingredientName: string): Promise<Record<string, any>[] | null> {
   try {
     // Define the SQL query to join recipes, recipe_ingredients, and ingredients tables
