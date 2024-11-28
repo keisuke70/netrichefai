@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchRecipeByUser, updateRecipeTitle } from "@/lib/actions";
+import { fetchFilteredRecipes, updateRecipeTitle } from "@/lib/actions";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,23 +51,12 @@ export default function RecipeHistory() {
 
   const recipesPerPage = 6;
 
+  // Fetch filter options when the component mounts
   useEffect(() => {
     if (status === "loading") return;
 
     if (status === "authenticated" && session?.user?.id) {
       const userId = parseInt(session.user.id, 10);
-
-      const fetchRecipes = async () => {
-        setIsLoading(true);
-        try {
-          const fetchedRecipes = await fetchRecipeByUser(userId);
-          setRecipes(fetchedRecipes);
-        } catch (error) {
-          console.error("Failed to fetch recipes:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
 
       const fetchFilters = async () => {
         try {
@@ -85,24 +74,49 @@ export default function RecipeHistory() {
         }
       };
 
-      fetchRecipes();
       fetchFilters();
     }
   }, [status, session]);
+
+  // Fetch recipes whenever filters change
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (status === "authenticated" && session?.user?.id) {
+      const userId = parseInt(session.user.id, 10);
+
+      const fetchRecipes = async () => {
+        setIsLoading(true);
+        try {
+          const fetchedRecipes = await fetchFilteredRecipes(
+            userId,
+            categoryFilter !== "all" ? categoryFilter : undefined,
+            cuisineFilter !== "all" ? cuisineFilter : undefined,
+            dietaryFilter !== "all" ? dietaryFilter : undefined
+          );
+          setRecipes(fetchedRecipes);
+        } catch (error) {
+          console.error("Failed to fetch recipes:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchRecipes();
+    }
+  }, [status, session, cuisineFilter, categoryFilter, dietaryFilter]);
 
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [cuisineFilter, categoryFilter, dietaryFilter]);
 
-  const filteredRecipes = recipes;
-
-  const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
+  const totalPages = Math.ceil(recipes.length / recipesPerPage);
 
   // Get current recipes for the page
   const startIndex = (page - 1) * recipesPerPage;
   const endIndex = startIndex + recipesPerPage;
-  const currentRecipes = filteredRecipes.slice(startIndex, endIndex);
+  const currentRecipes = recipes.slice(startIndex, endIndex);
 
   const clearHistory = () => {
     setRecipes([]);
@@ -196,7 +210,7 @@ export default function RecipeHistory() {
         <div>Loading recipes...</div>
       ) : (
         <div>
-          {filteredRecipes.length > 0 ? (
+          {recipes.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {currentRecipes.map((recipe) => (

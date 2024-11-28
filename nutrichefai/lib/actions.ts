@@ -587,7 +587,7 @@ export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
 
 export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<string[]> {
   try {
-    const { rows } = await sql<{ name: string }>`
+    const { rows } = await sql`
       SELECT DISTINCT c.name
       FROM categories c
       JOIN recipe_categories rc ON c.id = rc.category_id
