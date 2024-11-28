@@ -254,7 +254,7 @@ export async function fetchDietaryRestrictions(): Promise<
   return rows;
 }
 
-//
+// 2.1.3 DELETE
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
     if (!recipeId) {
@@ -273,6 +273,7 @@ export async function deleteRecipe(recipeId: number): Promise<string> {
   }
 }
 
+// 2.1.7 Aggregation with GROUP BY
 export async function numOfRecipesByCategory(): Promise<
   { category: string; recipe_count: number }[]
 > {
@@ -298,6 +299,7 @@ export async function numOfRecipesByCategory(): Promise<
   }
 }
 
+// 2.1.8 Aggregation with HAVING
 export async function fetchCuisineWithMostPopularRecipes(): Promise<{
   cuisine: string;
   average_popularity: number;
@@ -332,7 +334,9 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
     throw new Error("Failed to fetch cuisine with the most popular recipes.");
   }
 }
+
 // Insert a new recipe
+// 2.1.1 INSERT
 export async function insertRecipe(data: {
   userId: number;
   title: string;
@@ -368,25 +372,25 @@ export async function insertRecipe(data: {
   }
 }
 
-// Search recipes based on filters
-export async function searchRecipes(
-  filters: string
-): Promise<{ id: number; title: string }[]> {
-  try {
-    const query = `
-      SELECT id, title
-      FROM recipes
-      WHERE ${filters};
-    `;
-    const { rows } = await sql<{ id: number; title: string }>([
-      query,
-    ] as unknown as TemplateStringsArray);
-    return rows;
-  } catch (error) {
-    console.error("Error searching recipes:", error);
-    throw new Error("Failed to search recipes.");
-  }
-}
+// // Search recipes based on filters
+// export async function searchRecipes(
+//   filters: string
+// ): Promise<{ id: number; title: string }[]> {
+//   try {
+//     const query = `
+//       SELECT id, title
+//       FROM recipes
+//       WHERE ${filters};
+//     `;
+//     const { rows } = await sql<{ id: number; title: string }>([
+//       query,
+//     ] as unknown as TemplateStringsArray);
+//     return rows;
+//   } catch (error) {
+//     console.error("Error searching recipes:", error);
+//     throw new Error("Failed to search recipes.");
+//   }
+// }
 
 // Project recipe attributes
 export async function projectRecipeAttributes(
