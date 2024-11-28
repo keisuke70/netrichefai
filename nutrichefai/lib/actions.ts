@@ -603,17 +603,18 @@ export async function fetchUniqueCategoryNamesByUserId(userId: number): Promise<
 
 export async function updateRecipeTitle(recipeId: number, newTitle: string): Promise<number> {
   try {
-    const query = `
+    const result = await sql`
       UPDATE recipes
-      SET title = $1
-      WHERE id = $2;
+      SET title = ${newTitle}
+      WHERE id = ${recipeId};
     `;
-    const result = await sql([query] as unknown as TemplateStringsArray, newTitle, recipeId);
 
-    return (result.rowCount ?? 0) > 0 ? 1 : 0;
+    const updatedRows = result.rowCount ?? 0;
+
+    return updatedRows > 0 ? 1 : 0;
   } catch (error) {
     console.error("Error updating recipe title:", error);
-    return 0; // Return 0 in case of an error
+    return 0; 
   }
 }
 
