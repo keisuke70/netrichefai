@@ -66,13 +66,11 @@ export default function CategoryRestriction({
         ) : (
           <ChartPieIcon className="h-5 w-5" />
         )}
-        <span>
-          {isOpen ? "Close Statistics" : "Category-Restriction"}
-        </span>
+        <span>{isOpen ? "Close Statistics" : "Category-Restriction"}</span>
       </Button>
 
       {isOpen && (
-        <div className="absolute bottom-full right-0 mb-2 min-w-[320px]">
+        <div className="absolute z-50 top-full mt-2 w-[320px]">
           <Card className="shadow-lg">
             <CardHeader className="space-y-1">
               <CardTitle>Recipe Distribution</CardTitle>

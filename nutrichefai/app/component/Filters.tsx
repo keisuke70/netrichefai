@@ -11,6 +11,7 @@ import {
 import NumOfRecipesByCategory from "./NumOfRecipesByCategory";
 import CategoryRestriction from "./CategoryRestriction";
 import MostFrequentCuisine from "./MostFrequentCuisine";
+import RecipesForAllDietaryRestrictions from "./RecipesForAllDietaryRestrictions";
 
 interface FiltersProps {
   searchTerm: string;
@@ -68,6 +69,12 @@ const Filters: React.FC<FiltersProps> = ({
         <div className="flex items-center">
           <MostFrequentCuisine userId={userId!} />
         </div>
+
+        <div className="flex items-center">
+          <RecipesForAllDietaryRestrictions userId={userId!} />
+        </div>
+
+        
       </div>
 
       {/* Select Filters */}

@@ -10,25 +10,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PieChartIcon as ChartPieIcon, XIcon } from "lucide-react";
-import { maxCuisineAppearance } from "@/lib/actions"; 
+import { getRecipesForAllDietaryRestrictions } from "@/lib/actions"; // Import the function
 
-interface CuisineCount {
-  cuisine: string;
-  count: number;
+interface Recipe {
+  recipeId: number;
+  recipeTitle: string;
 }
 
-interface MostFrequentCuisineProps {
+interface RecipesForAllDietaryRestrictionsProps {
   userId: number; // Receive userId as a prop
 }
 
-export default function MostFrequentCuisine({
+export default function RecipesForAllDietaryRestrictions({
   userId,
-}: MostFrequentCuisineProps) {
+}: RecipesForAllDietaryRestrictionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [recipeData, setRecipeData] = useState<CuisineCount | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchCuisineData = async () => {
+  const fetchRecipesData = async () => {
     if (isOpen) {
       setIsOpen(false);
       return;
@@ -36,11 +36,14 @@ export default function MostFrequentCuisine({
 
     try {
       setIsLoading(true);
-      const data = await maxCuisineAppearance(userId); // Fetch data using the function
-      setRecipeData(data);
+      const data = await getRecipesForAllDietaryRestrictions(userId);
+      setRecipes(data);
       setIsOpen(true);
     } catch (error) {
-      console.error("Error fetching most frequent cuisine:", error);
+      console.error(
+        "Error fetching recipes for all dietary restrictions:",
+        error
+      );
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +52,7 @@ export default function MostFrequentCuisine({
   return (
     <div className="relative flex items-center">
       <Button
-        onClick={fetchCuisineData}
+        onClick={fetchRecipesData}
         variant="secondary"
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium shadow-md"
       >
@@ -58,37 +61,42 @@ export default function MostFrequentCuisine({
         ) : (
           <ChartPieIcon className="h-5 w-5" />
         )}
-        <span>{isOpen ? "Close Statistics" : "Most Frequent Cuisine"}</span>
+        <span>
+          {isOpen ? "Close Recipes" : "Recipes for All Dietary Restrictions"}
+        </span>
       </Button>
 
       {isOpen && (
         <div className="absolute z-50 top-full mt-2 w-[320px]">
           <Card className="shadow-lg">
             <CardHeader className="space-y-1">
-              <CardTitle>Most Frequent Cuisine</CardTitle>
+              <CardTitle>Recipes for All Dietary Restrictions</CardTitle>
               <CardDescription>
-                The cuisine with the highest recipe count
+                Recipes that satisfy all dietary restrictions
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="py-8 text-center text-muted-foreground">
-                  Loading statistics...
+                  Loading recipes...
                 </div>
-              ) : recipeData ? (
-                <div className="text-center space-y-2">
-                  <p className="text-lg font-medium">
-                    Cuisine:{" "}
-                    <span className="font-semibold">{recipeData.cuisine}</span>
-                  </p>
-                  <p className="text-lg font-medium">
-                    Count:{" "}
-                    <span className="font-semibold">{recipeData.count}</span>
-                  </p>
-                </div>
+              ) : recipes && recipes.length > 0 ? (
+                <ul className="space-y-2">
+                  {recipes.map((recipe) => (
+                    <li
+                      key={recipe.recipeId}
+                      className="flex justify-between border-b py-2"
+                    >
+                      <span className="font-medium">{recipe.recipeTitle}</span>
+                      <span className="text-sm text-muted-foreground">
+                        ID: {recipe.recipeId}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <div className="py-8 text-center text-muted-foreground">
-                  No data available
+                  No recipes available
                 </div>
               )}
             </CardContent>
