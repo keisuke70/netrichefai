@@ -483,20 +483,32 @@ export async function fetchRecipesByIngredient(
 }
 
 // 2.1.7 Aggregation with GROUP BY
-export async function numOfRecipesByCategory(): Promise<
-  { category: string; recipe_count: number }[]
-> {
+export async function numOfRecipesByCategory(
+  recipeId?: number
+): Promise<{ category: string; recipe_count: number }[]> {
   try {
-    const { rows } = await sql`
-      SELECT 
-        c.name AS category, 
-        COUNT(r.id) AS recipe_count
-      FROM categories c
-      LEFT JOIN recipe_categories rc ON c.id = rc.category_id
-      LEFT JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY c.name
-      ORDER BY recipe_count DESC; -- Optional: Order by count, descending
-    `;
+    const { rows } = recipeId
+      ? await sql`
+        SELECT 
+          c.name AS category, 
+          COUNT(r.id) AS recipe_count
+        FROM categories c
+        LEFT JOIN recipe_categories rc ON c.id = rc.category_id
+        LEFT JOIN recipes r ON rc.recipe_id = r.id
+        WHERE r.id = ${recipeId}
+        GROUP BY c.name
+        ORDER BY recipe_count DESC; -- Optional: Order by count, descending
+      `
+      : await sql`
+        SELECT 
+          c.name AS category, 
+          COUNT(r.id) AS recipe_count
+        FROM categories c
+        LEFT JOIN recipe_categories rc ON c.id = rc.category_id
+        LEFT JOIN recipes r ON rc.recipe_id = r.id
+        GROUP BY c.name
+        ORDER BY recipe_count DESC; -- Optional: Order by count, descending
+      `;
 
     return rows.map((row) => ({
       category: row.category,
@@ -507,6 +519,7 @@ export async function numOfRecipesByCategory(): Promise<
     throw new Error("Failed to fetch recipes by category.");
   }
 }
+
 
 // 2.1.8 Aggregation with HAVING
 export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: number } | null> {
