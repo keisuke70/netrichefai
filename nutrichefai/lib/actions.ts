@@ -509,63 +509,86 @@ export async function numOfRecipesByCategory(): Promise<
 }
 
 // 2.1.8 Aggregation with HAVING
-export async function fetchCuisineWithMostPopularRecipes(): Promise<{
-  cuisine: string;
-  average_popularity: number;
-}> {
+export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: number } | null> {
+  const client = await db.connect();
+
   try {
-    const { rows } = await sql`
-      SELECT 
-        cu.name AS cuisine, 
-        AVG(r.popularity) AS average_popularity
-      FROM cuisines cu
-      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      HAVING AVG(r.popularity) > 0
-      ORDER BY average_popularity DESC
+    const result = await client.sql`
+      SELECT
+        c.name AS cuisine,
+        COUNT(rc.recipe_id) AS count
+      FROM cuisines c
+      JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
+      GROUP BY c.name
+      HAVING COUNT(rc.recipe_id) > 0
+      ORDER BY count DESC
       LIMIT 1;
     `;
 
-    if (rows.length === 0) {
-      throw new Error("No cuisines found with popular recipes.");
+    // If a result exists, return the cuisine and count
+    if (result.rows.length > 0) {
+      return {
+        cuisine: result.rows[0].cuisine,
+        count: parseInt(result.rows[0].count, 10),
+      };
     }
 
-    return {
-      cuisine: rows[0].cuisine,
-      average_popularity: parseFloat(rows[0].average_popularity),
-    };
+    // If no cuisines exist, return null
+    return null;
   } catch (error) {
-    console.error(
-      "Error fetching cuisine with the most popular recipes:",
-      error
-    );
-    throw new Error("Failed to fetch cuisine with the most popular recipes.");
+    console.error("Error fetching max cuisine appearance:", error);
+    throw new Error("Failed to fetch max cuisine appearance.");
+  } finally {
+    client.release();
   }
 }
 
-// Get cuisines with popularity above global average
-//  Create a button or dropdown in the frontend
+
+// Get the number of recipes that correspond to a category and a dietary restriction
+//  Create a button or dropdown in the frontend 
 // 2.1.9
-export async function getCuisinesAboveGlobalAverage(): Promise<
-  { cuisine: string; average_popularity: number }[]
-> {
+export async function getRecipeCountByCategoryAndDietary(
+  userId: number,
+  cuisineName: string,
+  categoryName: string,
+  dietaryRestrictionName: string
+): Promise<number> {
   try {
-    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
-      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
-      FROM cuisines cu
-      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      HAVING AVG(r.popularity) > (
-        SELECT AVG(r2.popularity) FROM recipes r2
-      )
-      ORDER BY average_popularity DESC;
+    // Execute the query using sql template literal tag
+    const { rows } = await sql<{
+      recipe_count: number;
+    }>`
+      SELECT COUNT(*) AS recipe_count
+      FROM (
+        SELECT r.id
+        FROM recipes r
+        JOIN recipe_cuisines rc ON r.id = rc.recipe_id
+        JOIN cuisines c ON rc.cuisine_id = c.id
+        WHERE c.name = ${cuisineName}
+          AND r.user_id = ${userId}
+          AND (
+            SELECT COUNT(*)
+            FROM recipe_categories rcat
+            JOIN categories cat ON rcat.category_id = cat.id
+            WHERE rcat.recipe_id = r.id
+              AND cat.name = ${categoryName}
+          ) > 0
+          AND (
+            SELECT COUNT(*)
+            FROM recipe_dietary_restrictions rdr
+            JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+            WHERE rdr.recipe_id = r.id
+              AND dr.name = ${dietaryRestrictionName}
+          ) > 0
+        GROUP BY r.id
+      ) AS filtered_recipes;
     `;
-    return rows;
+
+    // Return the count from the result
+    return rows[0]?.recipe_count || 0;
   } catch (error) {
-    console.error("Error fetching cuisines above global average:", error);
-    throw new Error("Failed to fetch cuisines above global average.");
+    console.error("Error fetching filtered recipe count:", error);
+    throw new Error("Failed to get the filtered recipe count.");
   }
 }
 
