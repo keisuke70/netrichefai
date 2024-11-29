@@ -73,7 +73,6 @@ export default function RecipeHistory() {
         setIsLoading(true);
         try {
           let fetchedRecipes: Recipe[] = [];
-`
           if (searchTerm.trim() !== "") {
             // Call fetchRecipesByIngredient if searchTerm is not empty
             fetchedRecipes = await fetchRecipesByIngredient(searchTerm.trim());
