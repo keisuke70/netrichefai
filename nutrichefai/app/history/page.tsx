@@ -14,8 +14,6 @@ import { Recipe } from "@/lib/definitions";
 import Filters from "../component/Filters";
 import RecipeList from "../component/RecipeList";
 import PaginationControls from "../component/PaginationControls";
-import CategoryRestriction from "../component/CategoryRestriction";
-import NumOfRecipesByCategory from "../component/NumOfRecipesByCategory";
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -39,14 +37,17 @@ export default function RecipeHistory() {
     if (status === "loading") return;
 
     if (status === "authenticated" && session?.user?.id) {
-      userId = parseInt(session.user.id, 10);
+      const parsedUserId = parseInt(session.user.id, 10);
+      setUserID(parsedUserId);
 
       const fetchFilters = async () => {
         try {
-          const cuisines = await fetchUserCuisineNames(userId);
-          const categories = await fetchUniqueCategoryNamesByUserId(userId);
+          const cuisines = await fetchUserCuisineNames(parsedUserId);
+          const categories = await fetchUniqueCategoryNamesByUserId(
+            parsedUserId
+          );
           const dietaryRestrictions = await fetchUserDietaryRestrictionNames(
-            userId
+            parsedUserId
           );
 
           setCuisineOptions(["All Cuisines", ...cuisines]);
@@ -63,7 +64,7 @@ export default function RecipeHistory() {
 
   // Fetch recipes whenever filters or search term change
   useEffect(() => {
-    if (status === "loading") return;
+    if (status === "loading" || !userId) return;
 
     if (status === "authenticated" && session?.user?.id) {
       setUserID(parseInt(session.user.id, 10));
@@ -158,7 +159,7 @@ export default function RecipeHistory() {
         dietaryFilter={dietaryFilter}
         setDietaryFilter={setDietaryFilter}
         dietaryOptions={dietaryOptions}
-        userId ={userId}
+        userId ={userId!}
       />
 
       {isLoading ? (
@@ -186,7 +187,6 @@ export default function RecipeHistory() {
           )}
         </div>
       )}
-      <CategoryRestriction userId={parseInt(session?.user?.id || "0", 10)} />
     </div>
   );
 }

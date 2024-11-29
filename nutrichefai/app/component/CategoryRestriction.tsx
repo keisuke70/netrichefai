@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,60 +16,61 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { PieChartIcon as ChartPieIcon, XIcon } from 'lucide-react'
-import { getRecipeCountsNestedAggregation } from '@/lib/actions'
+} from "@/components/ui/table";
+import { PieChartIcon as ChartPieIcon, XIcon } from "lucide-react";
+import { getRecipeCountsNestedAggregation } from "@/lib/actions";
 
 interface CategoryRestrictionProps {
-  userId: number
+  userId: number;
 }
 
 interface RecipeCount {
-  categoryRestriction: string
-  recipesNum: number
+  categoryRestriction: string;
+  recipesNum: number;
 }
 
-export default function CategoryRestriction({ userId }: CategoryRestrictionProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [recipeData, setRecipeData] = useState<RecipeCount[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+export default function CategoryRestriction({
+  userId,
+}: CategoryRestrictionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [recipeData, setRecipeData] = useState<RecipeCount[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchRecipeCounts = async () => {
     if (isOpen) {
-      setIsOpen(false)
-      return
+      setIsOpen(false);
+      return;
     }
 
     try {
-      setIsLoading(true)
-      const data = await getRecipeCountsNestedAggregation(userId)
-      setRecipeData(data)
-      setIsOpen(true)
+      setIsLoading(true);
+      const data = await getRecipeCountsNestedAggregation(userId);
+      setRecipeData(data);
+      setIsOpen(true);
     } catch (error) {
-      console.error('Error fetching recipe counts:', error)
+      console.error("Error fetching recipe counts:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <Button 
+    <div className="relative flex items-center">
+      <Button
         onClick={fetchRecipeCounts}
-        size="icon"
         variant="secondary"
-        className="h-12 w-12 rounded-full shadow-lg"
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium shadow-md"
       >
         {isOpen ? (
           <XIcon className="h-5 w-5" />
         ) : (
           <ChartPieIcon className="h-5 w-5" />
         )}
-        <span className="sr-only">
-          {isOpen ? 'Close Statistics' : 'Show Recipe Statistics'}
+        <span>
+          {isOpen ? "Close Statistics" : "Category-Restriction"}
         </span>
       </Button>
-      
+
       {isOpen && (
         <div className="absolute bottom-full right-0 mb-2 min-w-[320px]">
           <Card className="shadow-lg">
@@ -115,6 +116,5 @@ export default function CategoryRestriction({ userId }: CategoryRestrictionProps
         </div>
       )}
     </div>
-  )
+  );
 }
-

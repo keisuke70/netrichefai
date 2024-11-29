@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import NumOfRecipesByCategory from "./NumOfRecipesByCategory";
+import CategoryRestriction from "./CategoryRestriction";
 
 interface FiltersProps {
   searchTerm: string;
@@ -22,6 +23,7 @@ interface FiltersProps {
   dietaryFilter: string;
   setDietaryFilter: React.Dispatch<React.SetStateAction<string>>;
   dietaryOptions: string[];
+  userId: number | null;
 }
 
 const Filters: React.FC<FiltersProps> = ({
@@ -36,9 +38,11 @@ const Filters: React.FC<FiltersProps> = ({
   dietaryFilter,
   setDietaryFilter,
   dietaryOptions,
+  userId,
 }) => {
   return (
     <div className="mb-6">
+      {/* Search Input and Clear Button */}
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <Input
           type="text"
@@ -51,74 +55,64 @@ const Filters: React.FC<FiltersProps> = ({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
-        
-        
-        
-        
-        
-        <div>
+        <div className="flex flex-col sm:flex-row gap-4 flex-nowrap">
+          <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Cuisine" />
+            </SelectTrigger>
+            <SelectContent>
+              {cuisineOptions.map((cuisine, index) => (
+                <SelectItem
+                  key={index}
+                  value={cuisine === "All Cuisines" ? "all" : cuisine}
+                >
+                  {cuisine}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-<div>
-        <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Cuisine" />
-          </SelectTrigger>
-          <SelectContent>
-            {cuisineOptions.map((cuisine, index) => (
-              <SelectItem
-                key={index}
-                value={cuisine === "All Cuisines" ? "all" : cuisine}
-              >
-                {cuisine}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((category, index) => (
+                <SelectItem
+                  key={index}
+                  value={category === "All Categories" ? "all" : category}
+                >
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categoryOptions.map((category, index) => (
-              <SelectItem
-                key={index}
-                value={category === "All Categories" ? "all" : category}
-              >
-                {category}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Dietary Restrictions" />
-          </SelectTrigger>
-          <SelectContent>
-            {dietaryOptions.map((diet, index) => (
-              <SelectItem
-                key={index}
-                value={diet === "All Diets" ? "all" : diet}
-              >
-                {diet}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Dietary Restrictions" />
+            </SelectTrigger>
+            <SelectContent>
+              {dietaryOptions.map((diet, index) => (
+                <SelectItem
+                  key={index}
+                  value={diet === "All Diets" ? "all" : diet}
+                >
+                  {diet}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-
-    <NumOfRecipesByCategory userId={userId} />
-
+        <div className="flex items-center">
+          <NumOfRecipesByCategory userId={userId!} />
         </div>
 
-
-
-
-
- 
-
+        <div className="flex items-center">
+          <CategoryRestriction userId={userId!} />
+        </div>
+        
       </div>
     </div>
   );

@@ -69,21 +69,19 @@ export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
 
   return (
     <div className="relative flex items-center" ref={dropdownRef}>
-      {/* Button Positioned Next to Filters */}
       <Button
         onClick={fetchRecipeCounts}
         variant="secondary"
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium shadow-md"
       >
         {isOpen ? (
-          <XIcon className="h-5 w-5 text-primary" /> // Close Icon
+          <XIcon className="h-5 w-5 text-primary" />
         ) : (
-          <ChartPieIcon className="h-5 w-5 text-primary" /> // Open Icon
+          <ChartPieIcon className="h-5 w-5 text-primary" />
         )}
-        <span>{isOpen ? 'Close Statistics' : 'Recipe Statistics'}</span>
+        <span>{isOpen ? 'Close Statistics' : 'Num. Recipe by Category'}</span>
       </Button>
 
-      {/* Dropdown Panel */}
       {isOpen && (
         <div className="absolute z-50 top-full mt-2 w-[320px]">
           <Card className="shadow-lg">
