@@ -1,4 +1,3 @@
-// page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -74,12 +73,11 @@ export default function RecipeHistory() {
         setIsLoading(true);
         try {
           let fetchedRecipes: Recipe[] = [];
-
+`
           if (searchTerm.trim() !== "") {
             // Call fetchRecipesByIngredient if searchTerm is not empty
             fetchedRecipes = await fetchRecipesByIngredient(searchTerm.trim());
           } else {
-            // Otherwise, fetch filtered recipes as before
             fetchedRecipes = await fetchFilteredRecipes(
               userId,
               categoryFilter !== "all" ? categoryFilter : undefined,

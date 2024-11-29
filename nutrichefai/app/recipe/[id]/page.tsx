@@ -174,7 +174,7 @@ export default function RecipeDetailPage() {
           {/* Selection Controls for Nutrition Facts */}
           <RecipeSection
             icon={<Info className="w-6 h-6" />}
-            title="Select Nutrition Facts"
+            title="Select Nutrition Facts You Want To  See"
           >
             <div className="ml-8">
               <label className="inline-flex items-center mr-4">
