@@ -557,26 +557,31 @@ export async function getRecipeCountsNestedAggregation(
     // Execute the nested aggregation query
     const { rows } = await sql<{ category_name: string; restriction_name: string; recipes_num: number }>`
       SELECT 
-        cat.name AS category_name,
+        category_group.category_name,
         dr.name AS restriction_name,
-        COUNT(r.id) AS recipes_num
-      FROM recipes r
-      JOIN recipe_categories rc ON r.id = rc.recipe_id
-      JOIN categories cat ON rc.category_id = cat.id
-      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+        COUNT(category_group.recipe_id) AS recipes_num
+      FROM (
+        SELECT 
+          cat.name AS category_name,
+          r.id AS recipe_id
+        FROM recipes r
+        JOIN recipe_categories rc ON r.id = rc.recipe_id
+        JOIN categories cat ON rc.category_id = cat.id
+        WHERE r.user_id = 22
+        GROUP BY cat.name, r.id
+        HAVING COUNT(r.id) <= ALL (
+          SELECT COUNT(r2.id)
+          FROM recipes r2
+          JOIN recipe_categories rc2 ON r2.id = rc2.recipe_id
+          JOIN categories cat2 ON rc2.category_id = cat2.id
+          WHERE r2.user_id = 22
+          GROUP BY cat2.name, r2.id
+        )
+      ) AS category_group
+      JOIN recipe_dietary_restrictions rdr ON category_group.recipe_id = rdr.recipe_id
       JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE r.user_id = ${userId}
-      GROUP BY cat.name, dr.name
-      HAVING COUNT(r.id) >= ALL (
-        SELECT COUNT(r2.id)
-        FROM recipes r2
-        JOIN recipe_categories rc2 ON r2.id = rc2.recipe_id
-        JOIN categories cat2 ON rc2.category_id = cat2.id
-        JOIN recipe_dietary_restrictions rdr2 ON r2.id = rdr2.recipe_id
-        JOIN dietary_restrictions dr2 ON rdr2.dietary_id = dr2.id
-        WHERE r2.user_id = ${userId}
-        GROUP BY cat2.name, dr2.name
-      );
+      GROUP BY category_group.category_name, dr.name
+      ORDER BY category_group.category_name, dr.name;
     `;
 
     // Transform the result into the desired output format
