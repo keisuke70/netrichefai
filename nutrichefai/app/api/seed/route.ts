@@ -183,8 +183,13 @@ export async function GET() {
       INSERT INTO recipes (user_id, title, description, cooking_time)
       VALUES
         (1, 'Vegan Buddha Bowl', 'A healthy bowl with quinoa, roasted vegetables, and tahini dressing.', 30),
-        (2, 'Chicken Tikka Masala', 'A flavorful Indian dish with creamy tomato curry and marinated chicken.', 45),
-        (3, 'Gluten-Free Pancakes', 'Fluffy pancakes made with almond flour and a hint of vanilla.', 20);
+        (1, 'Chicken Tikka Masala', 'A flavorful Indian dish with creamy tomato curry and marinated chicken.', 45),
+        (1, 'Gluten-Free Pancakes', 'Fluffy pancakes made with almond flour and a hint of vanilla.', 20);
+    `;
+    await client.sql`
+      INSERT INTO user (id, email, password)
+      VALUES
+        (1, jordan2002222@gmail.com, Yk20020221);
     `;
 
     await client.sql`
