@@ -497,8 +497,7 @@ export async function numOfRecipesByCategory(
       LEFT JOIN recipes r ON rc.recipe_id = r.id
       WHERE r.user_id = ${userId} -- Filter by userId
       GROUP BY c.name
-      ORDER BY recipe_count DESC; -- Optional: Order by count, descending
-    `;
+      ORDER BY recipe_count DESC; -- Optional: Order by count, descending`;
 
     return rows.map((row) => ({
       category: row.category,

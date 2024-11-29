@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
+import { useState } from 'react';
+import { Button } from '@/components/ui/button'; // shadcnui Button component
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from '@/components/ui/card'; // shadcnui Card components
 import {
   Table,
   TableBody,
@@ -16,60 +16,61 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { PieChartIcon as ChartPieIcon, XIcon } from 'lucide-react'
-import { numOfRecipesByCategory } from '@/lib/actions'
+} from '@/components/ui/table'; // shadcnui Table components
+import { PieChartIcon as ChartPieIcon, XIcon } from 'lucide-react'; // Icons from lucide-react
+import { numOfRecipesByCategory } from '@/lib/actions';
 
 interface RecipesByCategoryProps {
-  userId: number
+  userId: number;
 }
 
 interface RecipeCategoryCount {
-  category: string
-  recipe_count: number
+  category: string;
+  recipe_count: number;
 }
 
 export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [recipeData, setRecipeData] = useState<RecipeCategoryCount[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [recipeData, setRecipeData] = useState<RecipeCategoryCount[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchRecipeCounts = async () => {
     if (isOpen) {
-      setIsOpen(false)
-      return
+      setIsOpen(false);
+      return;
     }
 
     try {
-      setIsLoading(true)
-      const data = await numOfRecipesByCategory(userId)
-      setRecipeData(data)
-      setIsOpen(true)
+      setIsLoading(true);
+      const data = await numOfRecipesByCategory(userId);
+      setRecipeData(data);
+      setIsOpen(true);
     } catch (error) {
-      console.error('Error fetching recipe counts:', error)
+      console.error('Error fetching recipe counts:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <Button 
+      {/* Floating Button */}
+      <Button
         onClick={fetchRecipeCounts}
-        size="icon"
         variant="secondary"
-        className="h-12 w-12 rounded-full shadow-lg"
+        className="h-12 w-12 rounded-full p-0 shadow-lg flex items-center justify-center"
       >
         {isOpen ? (
-          <XIcon className="h-5 w-5" />
+          <XIcon className="h-5 w-5" /> // Close Icon
         ) : (
-          <ChartPieIcon className="h-5 w-5" />
+          <ChartPieIcon className="h-5 w-5" /> // Chart Icon
         )}
         <span className="sr-only">
           {isOpen ? 'Close Statistics' : 'Show Recipe Statistics'}
         </span>
       </Button>
-      
+
+      {/* Dropdown Panel */}
       {isOpen && (
         <div className="absolute bottom-full right-0 mb-2 min-w-[320px]">
           <Card className="shadow-lg">
@@ -115,5 +116,5 @@ export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
         </div>
       )}
     </div>
-  )
+  );
 }
