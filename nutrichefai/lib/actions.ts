@@ -483,6 +483,7 @@ export async function fetchRecipesByIngredient(
 }
 
 // 2.1.7 Aggregation with GROUP BY
+// ex) { "category": "Main Course", "recipe_count": 5 }
 export async function numOfRecipesByCategory(
   userId: number
 ): Promise<{ category: string; recipe_count: number }[]> {
