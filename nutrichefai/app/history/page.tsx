@@ -16,7 +16,7 @@ import {
 import Filters from "../component/Filters";
 import RecipeList from "../component/RecipeList";
 import PaginationControls from "../component/PaginationControls";
-
+//import AggregationComponents from "..component/AggregationComponents"
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -175,7 +175,6 @@ export default function RecipeHistory() {
                 setEditedTitle={setEditedTitle}
                 handleEditClick={handleEditClick}
               />
-
               <PaginationControls
                 page={page}
                 setPage={setPage}
