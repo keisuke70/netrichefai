@@ -11,6 +11,25 @@ export async function GET() {
   try {
     await client.sql`BEGIN`;
 
+    // Drop existing tables to allow re-running the script
+    await client.sql`
+      DROP TABLE IF EXISTS ingredient_allergens;
+      DROP TABLE IF EXISTS perishable_ingredients;
+      DROP TABLE IF EXISTS recipe_ingredients;
+      DROP TABLE IF EXISTS recipe_steps;
+      DROP TABLE IF EXISTS nutrition_facts;
+      DROP TABLE IF EXISTS recipe_dietary_restrictions;
+      DROP TABLE IF EXISTS recipe_cuisines;
+      DROP TABLE IF EXISTS recipe_categories;
+      DROP TABLE IF EXISTS allergens;
+      DROP TABLE IF EXISTS dietary_restrictions;
+      DROP TABLE IF EXISTS cuisines;
+      DROP TABLE IF EXISTS categories;
+      DROP TABLE IF EXISTS ingredients;
+      DROP TABLE IF EXISTS recipes;
+      DROP TABLE IF EXISTS users;
+    `;
+
     // Create tables
     await client.sql`
       CREATE TABLE IF NOT EXISTS users (
