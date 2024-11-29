@@ -522,16 +522,19 @@ export async function numOfRecipesByCategory(
 
 
 // 2.1.8 Aggregation with HAVING
-export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: number } | null> {
-  const client = await db.connect();
+export async function maxCuisineAppearance(recipeId: number): Promise<{ cuisine: string; count: number } | null> {
+  if (!recipeId) {
+    throw new Error("Recipe ID is required.");
+  }
 
   try {
-    const result = await client.sql`
+    const result = await sql`
       SELECT
         c.name AS cuisine,
         COUNT(rc.recipe_id) AS count
       FROM cuisines c
       JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
+      WHERE rc.recipe_id = ${recipeId} -- Filter by recipeId
       GROUP BY c.name
       HAVING COUNT(rc.recipe_id) > 0
       ORDER BY count DESC
@@ -551,8 +554,6 @@ export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: 
   } catch (error) {
     console.error("Error fetching max cuisine appearance:", error);
     throw new Error("Failed to fetch max cuisine appearance.");
-  } finally {
-    client.release();
   }
 }
 
