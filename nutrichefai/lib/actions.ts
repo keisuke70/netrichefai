@@ -472,7 +472,7 @@ export async function numOfRecipesByCategory(): Promise<
 }
 
 // 2.1.8 Aggregation with HAVING
-export async function fetchCuisineWithMostPopularRecipes(): Promise<{
+export async function fetchCuisineMostSearched(): Promise<{
   cuisine: string;
   average_popularity: number;
 }> {
@@ -895,5 +895,50 @@ export async function saveRecipeDetails(
   } catch (error) {
     console.error("Error saving recipe details:", error);
     throw new Error("Failed to save recipe details.");
+  }
+}
+
+export async function getFilteredRecipeCount(
+  userId: number,
+  cuisineName: string,
+  categoryName: string,
+  dietaryRestrictionName: string
+): Promise<number> {
+  try {
+    // Execute the query using sql template literal tag
+    const { rows } = await sql<{
+      recipe_count: number;
+    }>`
+      SELECT COUNT(*) AS recipe_count
+      FROM (
+        SELECT r.id
+        FROM recipes r
+        JOIN recipe_cuisines rc ON r.id = rc.recipe_id
+        JOIN cuisines c ON rc.cuisine_id = c.id
+        WHERE c.name = ${cuisineName}
+          AND r.user_id = ${userId}
+          AND (
+            SELECT COUNT(*)
+            FROM recipe_categories rcat
+            JOIN categories cat ON rcat.category_id = cat.id
+            WHERE rcat.recipe_id = r.id
+              AND cat.name = ${categoryName}
+          ) > 0
+          AND (
+            SELECT COUNT(*)
+            FROM recipe_dietary_restrictions rdr
+            JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+            WHERE rdr.recipe_id = r.id
+              AND dr.name = ${dietaryRestrictionName}
+          ) > 0
+        GROUP BY r.id
+      ) AS filtered_recipes;
+    `;
+
+    // Return the count from the result
+    return rows[0]?.recipe_count || 0;
+  } catch (error) {
+    console.error("Error fetching filtered recipe count:", error);
+    throw new Error("Failed to get the filtered recipe count.");
   }
 }
