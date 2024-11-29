@@ -16,7 +16,6 @@ import {
 import Filters from "../component/Filters";
 import RecipeList from "../component/RecipeList";
 import PaginationControls from "../component/PaginationControls";
-import ClearHistoryDialog from "../component/ClearHistoryDialog";
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -116,10 +115,6 @@ export default function RecipeHistory() {
   const endIndex = startIndex + recipesPerPage;
   const currentRecipes = recipes.slice(startIndex, endIndex);
 
-  const clearHistory = () => {
-    setRecipes([]);
-  };
-
   const handleEditClick = (recipeId: number, currentTitle: string) => {
     if (editingId === recipeId) {
       // Save the new title
@@ -174,6 +169,7 @@ export default function RecipeHistory() {
             <>
               <RecipeList
                 recipes={currentRecipes}
+                setRecipes={setRecipes} // Pass down setRecipes
                 editingId={editingId}
                 setEditingId={setEditingId}
                 editedTitle={editedTitle}
@@ -190,12 +186,6 @@ export default function RecipeHistory() {
           ) : (
             <div>No recipes found.</div>
           )}
-        </div>
-      )}
-
-      {recipes.length > 0 && (
-        <div className="mt-8">
-          <ClearHistoryDialog clearHistory={clearHistory} />
         </div>
       )}
     </div>

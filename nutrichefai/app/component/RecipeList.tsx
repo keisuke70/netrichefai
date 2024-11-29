@@ -5,8 +5,8 @@ import { Recipe } from "@/lib/definitions";
 
 interface RecipeListProps {
   recipes: Recipe[];
+  setRecipes: React.Dispatch<React.SetStateAction<Recipe[]>>; // Accept setRecipes
   editingId: number | null;
-  setEditingId: React.Dispatch<React.SetStateAction<number | null>>;
   editedTitle: string;
   setEditedTitle: React.Dispatch<React.SetStateAction<string>>;
   handleEditClick: (recipeId: number, currentTitle: string) => void;
@@ -15,7 +15,7 @@ interface RecipeListProps {
 const RecipeList: React.FC<RecipeListProps> = ({
   recipes,
   editingId,
-  setEditingId,
+  setRecipes,
   editedTitle,
   setEditedTitle,
   handleEditClick,
@@ -26,6 +26,7 @@ const RecipeList: React.FC<RecipeListProps> = ({
         <RecipeCard
           key={recipe.id}
           recipe={recipe}
+          setRecipes={setRecipes}
           editingId={editingId}
           editedTitle={editedTitle}
           setEditedTitle={setEditedTitle}
