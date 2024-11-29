@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button'; // shadcnui Button component
 import {
   Card,
@@ -33,6 +33,7 @@ export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [recipeData, setRecipeData] = useState<RecipeCategoryCount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null); // Ref for dropdown
 
   const fetchRecipeCounts = async () => {
     if (isOpen) {
@@ -52,27 +53,39 @@ export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
     }
   };
 
+  // Close the dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Floating Button */}
+    <div className="relative flex items-center" ref={dropdownRef}>
+      {/* Button Positioned Next to Filters */}
       <Button
         onClick={fetchRecipeCounts}
         variant="secondary"
-        className="h-12 w-12 rounded-full p-0 shadow-lg flex items-center justify-center"
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium shadow-md"
       >
         {isOpen ? (
-          <XIcon className="h-5 w-5" /> // Close Icon
+          <XIcon className="h-5 w-5 text-primary" /> // Close Icon
         ) : (
-          <ChartPieIcon className="h-5 w-5" /> // Chart Icon
+          <ChartPieIcon className="h-5 w-5 text-primary" /> // Open Icon
         )}
-        <span className="sr-only">
-          {isOpen ? 'Close Statistics' : 'Show Recipe Statistics'}
-        </span>
+        <span>{isOpen ? 'Close Statistics' : 'Recipe Statistics'}</span>
       </Button>
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute bottom-full right-0 mb-2 min-w-[320px]">
+        <div className="absolute z-50 top-full mt-2 w-[320px]">
           <Card className="shadow-lg">
             <CardHeader className="space-y-1">
               <CardTitle>Recipes By Category</CardTitle>

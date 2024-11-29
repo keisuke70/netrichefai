@@ -1,24 +1,21 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   fetchFilteredRecipes,
   fetchRecipesByIngredient,
   updateRecipeTitle,
-} from "@/lib/actions";
-import { useSession } from "next-auth/react";
-import { Recipe } from "@/lib/definitions";
-import {
   fetchUserCuisineNames,
   fetchUniqueCategoryNamesByUserId,
   fetchUserDietaryRestrictionNames,
 } from "@/lib/actions";
+import { Recipe } from "@/lib/definitions";
 import Filters from "../component/Filters";
 import RecipeList from "../component/RecipeList";
 import PaginationControls from "../component/PaginationControls";
 import CategoryRestriction from "../component/CategoryRestriction";
 import NumOfRecipesByCategory from "../component/NumOfRecipesByCategory";
-
 
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
@@ -34,7 +31,7 @@ export default function RecipeHistory() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editedTitle, setEditedTitle] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [userId, setUserID] = useState<number | null> ();
   const recipesPerPage = 6;
 
   // Fetch filter options when the component mounts
@@ -42,7 +39,7 @@ export default function RecipeHistory() {
     if (status === "loading") return;
 
     if (status === "authenticated" && session?.user?.id) {
-      const userId = parseInt(session.user.id, 10);
+      userId = parseInt(session.user.id, 10);
 
       const fetchFilters = async () => {
         try {
@@ -69,14 +66,13 @@ export default function RecipeHistory() {
     if (status === "loading") return;
 
     if (status === "authenticated" && session?.user?.id) {
-      const userId = parseInt(session.user.id, 10);
+      setUserID(parseInt(session.user.id, 10));
 
       const fetchRecipes = async () => {
         setIsLoading(true);
         try {
           let fetchedRecipes: Recipe[] = [];
           if (searchTerm.trim() !== "") {
-            // Call fetchRecipesByIngredient if searchTerm is not empty
             fetchedRecipes = await fetchRecipesByIngredient(searchTerm.trim());
           } else {
             fetchedRecipes = await fetchFilteredRecipes(
@@ -162,6 +158,7 @@ export default function RecipeHistory() {
         dietaryFilter={dietaryFilter}
         setDietaryFilter={setDietaryFilter}
         dietaryOptions={dietaryOptions}
+        userId ={userId}
       />
 
       {isLoading ? (
@@ -190,8 +187,6 @@ export default function RecipeHistory() {
         </div>
       )}
       <CategoryRestriction userId={parseInt(session?.user?.id || "0", 10)} />
-      <NumOfRecipesByCategory userId={parseInt(session?.user?.id || "0", 10)} />
     </div>
-    
   );
 }

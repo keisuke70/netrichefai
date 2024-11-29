@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import NumOfRecipesByCategory from "./NumOfRecipesByCategory";
 
 interface FiltersProps {
   searchTerm: string;
@@ -50,6 +51,14 @@ const Filters: React.FC<FiltersProps> = ({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
+        
+        
+        
+        
+        
+        <div>
+
+<div>
         <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Cuisine" />
@@ -97,6 +106,19 @@ const Filters: React.FC<FiltersProps> = ({
             ))}
           </SelectContent>
         </Select>
+        </div>
+
+
+    <NumOfRecipesByCategory userId={userId} />
+
+        </div>
+
+
+
+
+
+ 
+
       </div>
     </div>
   );
