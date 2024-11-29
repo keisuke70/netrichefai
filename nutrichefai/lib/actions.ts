@@ -509,9 +509,10 @@ export async function numOfRecipesByCategory(
   }
 }
 
-
 // 2.1.8 Aggregation with HAVING
-export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: string; count: number } | null> {
+export async function maxCuisineAppearance(
+  userId: number
+): Promise<{ cuisine: string; count: number } | null> {
   try {
     const result = await sql`
       SELECT
@@ -520,7 +521,7 @@ export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: s
       FROM cuisines c
       JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
       JOIN recipes r ON rc.recipe_id = r.id
-      WHERE r.user_id = ${userId} -- Filter by userId
+      WHERE r.user_id = ${userId}
       GROUP BY c.name
       HAVING COUNT(rc.recipe_id) > 0
       ORDER BY count DESC
@@ -543,16 +544,19 @@ export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: s
   }
 }
 
-
 // Get the number of recipes that correspond to a category and a dietary restriction
-//  Create a button or dropdown in the frontend 
+//  Create a button or dropdown in the frontend
 // 2.1.9
 export async function getRecipeCountsNestedAggregation(
   userId: number
 ): Promise<{ categoryRestriction: string; recipesNum: number }[]> {
   try {
     // Execute the nested aggregation query
-    const { rows } = await sql<{ category_name: string; restriction_name: string; recipes_num: number }>`
+    const { rows } = await sql<{
+      category_name: string;
+      restriction_name: string;
+      recipes_num: number;
+    }>`
       SELECT 
         category_group.category_name,
         dr.name AS restriction_name,
@@ -589,27 +593,30 @@ export async function getRecipeCountsNestedAggregation(
 
     return result;
   } catch (error) {
-    console.error('Error fetching recipe counts with nested aggregation:', error);
-    throw new Error('Failed to fetch recipe counts.');
+    console.error(
+      "Error fetching recipe counts with nested aggregation:",
+      error
+    );
+    throw new Error("Failed to fetch recipe counts.");
   }
 }
 
 // maybe for division function 2.1.10
 export async function fetchRecipesByDietaryRestrictions(
+  userId: number,
   restrictions: string[]
 ): Promise<Record<string, any>[]> {
   try {
     // Join restrictions into a single quoted, comma-separated string
-    const formattedRestrictions = restrictions.map((r) => `'${r}'`).join(", ");
-    const query = `
-      SELECT r.id, r.title, r.description, r.cooking_time
+    const formattedRestrictions = restrictions.map((r) => "${r}").join(", ");
+    const query = `SELECT r.id, r.title, r.description, r.cooking_time
       FROM recipes r
       JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
       JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
       WHERE dr.name IN (${formattedRestrictions})
+        AND r.user_id = ${userId} -- Filter by userId
       GROUP BY r.id
-      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};
-    `;
+      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};`;
     const { rows } = await sql<Record<string, any>>([
       query,
     ] as unknown as TemplateStringsArray);

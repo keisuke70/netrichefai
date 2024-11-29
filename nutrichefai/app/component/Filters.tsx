@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import NumOfRecipesByCategory from "./NumOfRecipesByCategory";
 import CategoryRestriction from "./CategoryRestriction";
+import MostFrequentCuisine from "./MostFrequentCuisine";
 
 interface FiltersProps {
   searchTerm: string;
@@ -54,7 +55,23 @@ const Filters: React.FC<FiltersProps> = ({
         <Button onClick={() => setSearchTerm("")}>Clear</Button>
       </div>
 
+      {/* Components Above Select */}
       <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex items-center">
+          <NumOfRecipesByCategory userId={userId!} />
+        </div>
+
+        <div className="flex items-center">
+          <CategoryRestriction userId={userId!} />
+        </div>
+
+        <div className="flex items-center">
+          <MostFrequentCuisine userId={userId!} />
+        </div>
+      </div>
+
+      {/* Select Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 mt-4">
         <div className="flex flex-col sm:flex-row gap-4 flex-nowrap">
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
@@ -104,15 +121,6 @@ const Filters: React.FC<FiltersProps> = ({
             </SelectContent>
           </Select>
         </div>
-
-        <div className="flex items-center">
-          <NumOfRecipesByCategory userId={userId!} />
-        </div>
-
-        <div className="flex items-center">
-          <CategoryRestriction userId={userId!} />
-        </div>
-        
       </div>
     </div>
   );
