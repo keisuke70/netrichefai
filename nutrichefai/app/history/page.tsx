@@ -16,7 +16,8 @@ import {
 import Filters from "../component/Filters";
 import RecipeList from "../component/RecipeList";
 import PaginationControls from "../component/PaginationControls";
-//import AggregationComponents from "..component/AggregationComponents"
+import CategoryRestriction from "../component/CategoryRestriction";
+
 export default function RecipeHistory() {
   const { data: session, status } = useSession();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -186,6 +187,7 @@ export default function RecipeHistory() {
           )}
         </div>
       )}
+      <CategoryRestriction userId={parseInt(session?.user?.id || "0", 10)} />
     </div>
   );
 }
