@@ -45,7 +45,7 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white py-8 px-4 sm:px-6 lg:px-8">
+    <div className=" bg-white py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <Banner />
         <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-6 rounded-lg shadow-md border border-gray-400">

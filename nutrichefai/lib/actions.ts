@@ -16,6 +16,7 @@ import {
   DietaryRestriction,
 } from "./definitions";
 import format from "pg-format";
+import { z } from "zod";
 
 // // Fetch user recipes with pagination
 // export async function fetchUserRecipes(
@@ -254,25 +255,62 @@ export async function fetchDietaryRestrictions(): Promise<
   return rows;
 }
 
-
 //Insert a new recipe
 //2.1.1 INSERT
-export async function insertRecipe(data: {
-  userId: number;
-  title: string;
-  description: string;
-  cooking_time: number;
-}): Promise<{ message: string; recipeId?: number }> {
+
+const recipeSchema = z.object({
+  user_id: z
+    .string()
+    .regex(/^\d+$/, "Invalid user ID. Must be a number.")
+    .transform(Number),
+  title: z.string().min(1, "Title is required."),
+  description: z.string().min(1, "Description is required."),
+  cooking_time: z
+    .string()
+    .regex(/^\d+$/, "Cooking time must be a valid number.")
+    .transform(Number), // Ensure it's converted to a number
+});
+
+export async function insertRecipe(
+  prevState: any,
+  formData: FormData
+): Promise<{
+  message: string;
+  recipeId?: number;
+  errors?: Record<string, string[]>;
+}> {
+  // Parse and validate form data
+  const validatedFields = recipeSchema.safeParse({
+    user_id: formData.get("user_id"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    cooking_time: formData.get("cooking_time"),
+  });
+
+  // Return errors if validation fails
+  if (!validatedFields.success) {
+    return {
+      message: "Validation failed. Please correct the errors and try again.",
+      errors: validatedFields.error.flatten().fieldErrors,
+    };
+  }
+
+  const data = validatedFields.data;
+
   try {
-    const { rows: recipeRows } = await sql<{ id: number }>`
+    // Insert recipe into the database
+    const { rows } = await sql<{ id: number }>`
       INSERT INTO recipes (user_id, title, description, cooking_time)
-      VALUES (${data.userId}, ${data.title}, ${data.description})
+      VALUES (${data.user_id}, ${data.title}, ${data.description}, ${data.cooking_time})
       RETURNING id;
     `;
 
-    const recipeId = recipeRows[0].id;
+    const recipeId = rows[0]?.id;
 
-    return { message: "Recipe inserted successfully.", recipeId };
+    return {
+      message: "Recipe inserted successfully.",
+      recipeId,
+    };
   } catch (error) {
     console.error("Error inserting recipe:", error);
     throw new Error("Failed to insert recipe.");
@@ -375,7 +413,6 @@ export async function fetchFilteredRecipes(
     console.error("Error fetching filtered recipes:", error);
     throw new Error("Failed to fetch filtered recipes.");
   }
-  
 }
 
 // 2.1.5 projection
@@ -508,7 +545,7 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
 }
 
 // Get cuisines with popularity above global average
-//  Create a button or dropdown in the frontend 
+//  Create a button or dropdown in the frontend
 // 2.1.9
 export async function getCuisinesAboveGlobalAverage(): Promise<
   { cuisine: string; average_popularity: number }[]
@@ -659,7 +696,6 @@ export async function fetchRecipesByDietaryRestrictions(
 //   }
 // }
 
-
 export async function detailedRecipeExists(recipeId: number): Promise<boolean> {
   const stepsResult = await sql`
     SELECT 1 FROM recipe_steps WHERE recipe_id = ${recipeId} LIMIT 1;
@@ -756,7 +792,6 @@ export async function fetchUserCuisineNames(userId: number): Promise<string[]> {
   }
 }
 
-
 // for selecting options, we need this
 export async function fetchUniqueCategoryNamesByUserId(
   userId: number
@@ -775,7 +810,6 @@ export async function fetchUniqueCategoryNamesByUserId(
     throw new Error("Failed to fetch unique category names.");
   }
 }
-
 
 export async function saveRecipeDetails(
   recipeId: number,
@@ -848,7 +882,10 @@ export async function saveRecipeDetails(
         ON CONFLICT (recipe_id, ingredient_id) DO NOTHING;
       `;
 
-      if (ingredient.shelf_life !== undefined && ingredient.shelf_life !== null) {
+      if (
+        ingredient.shelf_life !== undefined &&
+        ingredient.shelf_life !== null
+      ) {
         await sql`
           INSERT INTO perishable_ingredients (id, shelf_life)
           VALUES (${ingredientId}, ${ingredient.shelf_life})

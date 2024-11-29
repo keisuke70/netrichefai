@@ -169,9 +169,8 @@ export default function RecipeHistory() {
             <>
               <RecipeList
                 recipes={currentRecipes}
-                setRecipes={setRecipes} // Pass down setRecipes
+                setRecipes={setRecipes}
                 editingId={editingId}
-                setEditingId={setEditingId}
                 editedTitle={editedTitle}
                 setEditedTitle={setEditedTitle}
                 handleEditClick={handleEditClick}
