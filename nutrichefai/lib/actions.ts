@@ -484,10 +484,10 @@ export async function fetchRecipesByIngredient(
 
 // 2.1.7 Aggregation with GROUP BY
 export async function numOfRecipesByCategory(
-  recipeId?: number
+  userId?: number
 ): Promise<{ category: string; recipe_count: number }[]> {
   try {
-    const { rows } = recipeId
+    const { rows } = userId
       ? await sql`
         SELECT 
           c.name AS category, 
@@ -495,7 +495,7 @@ export async function numOfRecipesByCategory(
         FROM categories c
         LEFT JOIN recipe_categories rc ON c.id = rc.category_id
         LEFT JOIN recipes r ON rc.recipe_id = r.id
-        WHERE r.id = ${recipeId}
+        WHERE r.id = ${userId}
         GROUP BY c.name
         ORDER BY recipe_count DESC; -- Optional: Order by count, descending
       `
@@ -522,8 +522,8 @@ export async function numOfRecipesByCategory(
 
 
 // 2.1.8 Aggregation with HAVING
-export async function maxCuisineAppearance(recipeId: number): Promise<{ cuisine: string; count: number } | null> {
-  if (!recipeId) {
+export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: string; count: number } | null> {
+  if (!userId) {
     throw new Error("Recipe ID is required.");
   }
 
@@ -534,7 +534,7 @@ export async function maxCuisineAppearance(recipeId: number): Promise<{ cuisine:
         COUNT(rc.recipe_id) AS count
       FROM cuisines c
       JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
-      WHERE rc.recipe_id = ${recipeId} -- Filter by recipeId
+      WHERE rc.recipe_id = ${userId} -- Filter by userId
       GROUP BY c.name
       HAVING COUNT(rc.recipe_id) > 0
       ORDER BY count DESC
