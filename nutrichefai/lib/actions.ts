@@ -512,10 +512,6 @@ export async function numOfRecipesByCategory(
 
 // 2.1.8 Aggregation with HAVING
 export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: string; count: number } | null> {
-  if (!userId) {
-    throw new Error("Recipe ID is required.");
-  }
-
   try {
     const result = await sql`
       SELECT
@@ -523,7 +519,8 @@ export async function maxCuisineAppearance(userId: number): Promise<{ cuisine: s
         COUNT(rc.recipe_id) AS count
       FROM cuisines c
       JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
-      WHERE rc.recipe_id = ${userId} -- Filter by userId
+      JOIN recipes r ON rc.recipe_id = r.id
+      WHERE r.user_id = ${userId} -- Filter by userId
       GROUP BY c.name
       HAVING COUNT(rc.recipe_id) > 0
       ORDER BY count DESC
