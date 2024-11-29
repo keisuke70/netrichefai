@@ -547,48 +547,45 @@ export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: 
 // Get the number of recipes that correspond to a category and a dietary restriction
 //  Create a button or dropdown in the frontend 
 // 2.1.9
-export async function getRecipeCountByCategoryAndDietary(
-  userId: number,
-  cuisineName: string,
-  categoryName: string,
-  dietaryRestrictionName: string
-): Promise<number> {
+export async function getRecipeCountsNestedAggregation(
+  userId: number
+): Promise<{ categoryRestriction: string; recipesNum: number }[]> {
   try {
-    // Execute the query using sql template literal tag
-    const { rows } = await sql<{
-      recipe_count: number;
-    }>`
-      SELECT COUNT(*) AS recipe_count
-      FROM (
-        SELECT r.id
-        FROM recipes r
-        JOIN recipe_cuisines rc ON r.id = rc.recipe_id
-        JOIN cuisines c ON rc.cuisine_id = c.id
-        WHERE c.name = ${cuisineName}
-          AND r.user_id = ${userId}
-          AND (
-            SELECT COUNT(*)
-            FROM recipe_categories rcat
-            JOIN categories cat ON rcat.category_id = cat.id
-            WHERE rcat.recipe_id = r.id
-              AND cat.name = ${categoryName}
-          ) > 0
-          AND (
-            SELECT COUNT(*)
-            FROM recipe_dietary_restrictions rdr
-            JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-            WHERE rdr.recipe_id = r.id
-              AND dr.name = ${dietaryRestrictionName}
-          ) > 0
-        GROUP BY r.id
-      ) AS filtered_recipes;
+    // Execute the nested aggregation query
+    const { rows } = await sql<{ category_name: string; restriction_name: string; recipes_num: number }>`
+      SELECT 
+        cat.name AS category_name,
+        dr.name AS restriction_name,
+        COUNT(r.id) AS recipes_num
+      FROM recipes r
+      JOIN recipe_categories rc ON r.id = rc.recipe_id
+      JOIN categories cat ON rc.category_id = cat.id
+      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+      JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+      WHERE r.user_id = ${userId}
+      GROUP BY cat.name, dr.name
+      HAVING COUNT(r.id) >= ALL (
+        SELECT COUNT(r2.id)
+        FROM recipes r2
+        JOIN recipe_categories rc2 ON r2.id = rc2.recipe_id
+        JOIN categories cat2 ON rc2.category_id = cat2.id
+        JOIN recipe_dietary_restrictions rdr2 ON r2.id = rdr2.recipe_id
+        JOIN dietary_restrictions dr2 ON rdr2.dietary_id = dr2.id
+        WHERE r2.user_id = ${userId}
+        GROUP BY cat2.name, dr2.name
+      );
     `;
 
-    // Return the count from the result
-    return rows[0]?.recipe_count || 0;
+    // Transform the result into the desired output format
+    const result = rows.map((row) => ({
+      categoryRestriction: `${row.category_name}-${row.restriction_name}`,
+      recipesNum: row.recipes_num,
+    }));
+
+    return result;
   } catch (error) {
-    console.error("Error fetching filtered recipe count:", error);
-    throw new Error("Failed to get the filtered recipe count.");
+    console.error('Error fetching recipe counts with nested aggregation:', error);
+    throw new Error('Failed to fetch recipe counts.');
   }
 }
 
