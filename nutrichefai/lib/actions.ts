@@ -472,40 +472,40 @@ export async function numOfRecipesByCategory(): Promise<
 }
 
 // 2.1.8 Aggregation with HAVING
-export async function fetchCuisineMostSearched(): Promise<{
-  cuisine: string;
-  average_popularity: number;
-}> {
+export async function maxCuisineAppearance(): Promise<{ cuisine: string; count: number } | null> {
+  const client = await db.connect();
+
   try {
-    const { rows } = await sql`
-      SELECT 
-        cu.name AS cuisine, 
-        AVG(r.popularity) AS average_popularity
-      FROM cuisines cu
-      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      HAVING AVG(r.popularity) > 0
-      ORDER BY average_popularity DESC
+    const result = await client.sql`
+      SELECT
+        c.name AS cuisine,
+        COUNT(rc.recipe_id) AS count
+      FROM cuisines c
+      JOIN recipe_cuisines rc ON c.id = rc.cuisine_id
+      GROUP BY c.name
+      HAVING COUNT(rc.recipe_id) > 0
+      ORDER BY count DESC
       LIMIT 1;
     `;
 
-    if (rows.length === 0) {
-      throw new Error("No cuisines found with popular recipes.");
+    // If a result exists, return the cuisine and count
+    if (result.rows.length > 0) {
+      return {
+        cuisine: result.rows[0].cuisine,
+        count: parseInt(result.rows[0].count, 10),
+      };
     }
 
-    return {
-      cuisine: rows[0].cuisine,
-      average_popularity: parseFloat(rows[0].average_popularity),
-    };
+    // If no cuisines exist, return null
+    return null;
   } catch (error) {
-    console.error(
-      "Error fetching cuisine with the most popular recipes:",
-      error
-    );
-    throw new Error("Failed to fetch cuisine with the most popular recipes.");
+    console.error("Error fetching max cuisine appearance:", error);
+    throw new Error("Failed to fetch max cuisine appearance.");
+  } finally {
+    client.release();
   }
 }
+
 
 // Get the number of recipes that correspond to a category and a dietary restriction
 //  Create a button or dropdown in the frontend 
