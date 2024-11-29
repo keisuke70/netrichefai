@@ -335,41 +335,29 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
   }
 }
 
-// Insert a new recipe
-// 2.1.1 INSERT
-// export async function insertRecipe(data: {
-//   userId: number;
-//   title: string;
-//   description: string;
-//   cooking_time: number;
-// }): Promise<{ message: string; recipeId?: number }> {
-//   try {
-//     const { rows: categoryRows } = await sql<{ id: number }>`
-//       SELECT id FROM categories WHERE id = ${data.categoryId};
-//     `;
-//     if (categoryRows.length === 0) {
-//       return { message: "Category does not exist." };
-//     }
+//Insert a new recipe
+//2.1.1 INSERT
+export async function insertRecipe(data: {
+  userId: number;
+  title: string;
+  description: string;
+  cooking_time: number;
+}): Promise<{ message: string; recipeId?: number }> {
+  try {
+    const { rows: recipeRows } = await sql<{ id: number }>`
+      INSERT INTO recipes (user_id, title, description, cooking_time)
+      VALUES (${data.userId}, ${data.title}, ${data.description})
+      RETURNING id;
+    `;
 
-//     const { rows: recipeRows } = await sql<{ id: number }>`
-//       INSERT INTO recipes (user_id, title, description, cooking_time)
-//       VALUES (${data.userId}, ${data.title}, ${data.description}, ${data.cookingTime})
-//       RETURNING id;
-//     `;
+    const recipeId = recipeRows[0].id;
 
-//     const recipeId = recipeRows[0].id;
-
-//     await sql`
-//       INSERT INTO recipe_categories (recipe_id, category_id)
-//       VALUES (${recipeId}, ${data.categoryId});
-//     `;
-
-//     return { message: "Recipe inserted successfully.", recipeId };
-//   } catch (error) {
-//     console.error("Error inserting recipe:", error);
-//     throw new Error("Failed to insert recipe.");
-//   }
-// }
+    return { message: "Recipe inserted successfully.", recipeId };
+  } catch (error) {
+    console.error("Error inserting recipe:", error);
+    throw new Error("Failed to insert recipe.");
+  }
+}
 
 // // Search recipes based on filters
 // export async function searchRecipes(
