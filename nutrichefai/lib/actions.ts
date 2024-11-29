@@ -254,6 +254,52 @@ export async function fetchDietaryRestrictions(): Promise<
   return rows;
 }
 
+
+//Insert a new recipe
+//2.1.1 INSERT
+export async function insertRecipe(data: {
+  userId: number;
+  title: string;
+  description: string;
+  cooking_time: number;
+}): Promise<{ message: string; recipeId?: number }> {
+  try {
+    const { rows: recipeRows } = await sql<{ id: number }>`
+      INSERT INTO recipes (user_id, title, description, cooking_time)
+      VALUES (${data.userId}, ${data.title}, ${data.description})
+      RETURNING id;
+    `;
+
+    const recipeId = recipeRows[0].id;
+
+    return { message: "Recipe inserted successfully.", recipeId };
+  } catch (error) {
+    console.error("Error inserting recipe:", error);
+    throw new Error("Failed to insert recipe.");
+  }
+}
+
+// 2.1.2 update
+export async function updateRecipeTitle(
+  recipeId: number,
+  newTitle: string
+): Promise<number> {
+  try {
+    const result = await sql`
+      UPDATE recipes
+      SET title = ${newTitle}
+      WHERE id = ${recipeId};
+    `;
+
+    const updatedRows = result.rowCount ?? 0;
+
+    return updatedRows > 0 ? 1 : 0;
+  } catch (error) {
+    console.error("Error updating recipe title:", error);
+    return 0;
+  }
+}
+
 // 2.1.3 DELETE
 export async function deleteRecipe(recipeId: number): Promise<string> {
   try {
@@ -270,6 +316,132 @@ export async function deleteRecipe(recipeId: number): Promise<string> {
   } catch (error) {
     console.error("Error deleting recipe:", error);
     throw new Error("Failed to delete the recipe. Please try again.");
+  }
+}
+
+// 2.1.4 Selection
+export async function fetchFilteredRecipes(
+  userId: number,
+  category?: string,
+  cuisine?: string,
+  dietaryRestriction?: string
+): Promise<Recipe[]> {
+  try {
+    // Initialize the base query and parameters array
+    let baseQuery = `
+      SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
+      FROM recipes r
+      LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
+      LEFT JOIN categories c ON rc.category_id = c.id
+      LEFT JOIN recipe_cuisines rcu ON r.id = rcu.recipe_id
+      LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
+      LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+      LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+      WHERE r.user_id = %L
+    `;
+    const queryParams: any[] = [userId];
+
+    // Collect conditions
+    const conditions: string[] = [];
+
+    if (category) {
+      conditions.push("c.name = %L");
+      queryParams.push(category);
+    }
+    if (cuisine) {
+      conditions.push("cu.name = %L");
+      queryParams.push(cuisine);
+    }
+    if (dietaryRestriction) {
+      conditions.push("dr.name = %L");
+      queryParams.push(dietaryRestriction);
+    }
+
+    // If there are additional conditions, append them to the base query
+    if (conditions.length > 0) {
+      const whereClause = conditions.join(" AND ");
+      baseQuery += ` AND ${whereClause}`;
+    }
+
+    // Use pg-format to safely format the query with parameters
+    const formattedQuery = format(baseQuery, ...queryParams);
+
+    const client = await db.connect();
+    // Execute the query using sql.unsafe
+    const { rows } = await client.query(formattedQuery);
+
+    return rows;
+  } catch (error) {
+    console.error("Error fetching filtered recipes:", error);
+    throw new Error("Failed to fetch filtered recipes.");
+  }
+  
+}
+
+// 2.1.5 projection
+export async function fetchCustomNutritionFacts(
+  recipeId: number,
+  showCalories: boolean,
+  showProteins: boolean,
+  showFats: boolean
+): Promise<Record<string, number | null> | null> {
+  try {
+    // Determine which attributes to select based on the boolean flags
+    const selectedAttributes: string[] = [];
+    if (showCalories) selectedAttributes.push("calories");
+    if (showProteins) selectedAttributes.push("proteins");
+    if (showFats) selectedAttributes.push("fats");
+
+    // If no attributes are selected, return null immediately
+    if (selectedAttributes.length === 0) {
+      return null;
+    }
+
+    // Validate the selected attributes against allowed columns
+    const validColumns = ["calories", "proteins", "fats"];
+    const columns = selectedAttributes.filter((col) =>
+      validColumns.includes(col)
+    );
+
+    if (columns.length === 0) {
+      return null;
+    }
+
+    // Use pg-format to safely format the query with dynamic column names
+    const query = format(
+      "SELECT %I FROM nutrition_facts WHERE recipe_id = %L;",
+      columns,
+      recipeId
+    );
+    const client = await db.connect();
+    // Execute the query using sql.unsafe
+    const { rows } = await client.query(query);
+
+    // Return the first row or null if no data exists
+    return rows.length > 0 ? rows[0] : null;
+  } catch (error) {
+    console.error("Error fetching custom nutrition facts:", error);
+    throw new Error("Failed to fetch custom nutrition facts.");
+  }
+}
+
+// 2.1.6 Join
+export async function fetchRecipesByIngredient(
+  ingredientName: string
+): Promise<Recipe[]> {
+  try {
+    const { rows } = await sql<Recipe>`
+      SELECT DISTINCT recipes.id, recipes.title, recipes.description, recipes.cooking_time
+      FROM recipes
+      INNER JOIN recipe_ingredients ON recipes.id = recipe_ingredients.recipe_id
+      INNER JOIN ingredients ON recipe_ingredients.ingredient_id = ingredients.id
+      WHERE ingredients.name ILIKE '%' || ${ingredientName} || '%';
+    `;
+
+    return rows;
+  } catch (error) {
+    console.error("Error fetching recipes by ingredient:", error);
+    throw new Error("Failed to fetch recipes by ingredient.");
   }
 }
 
@@ -335,27 +507,54 @@ export async function fetchCuisineWithMostPopularRecipes(): Promise<{
   }
 }
 
-//Insert a new recipe
-//2.1.1 INSERT
-export async function insertRecipe(data: {
-  userId: number;
-  title: string;
-  description: string;
-  cooking_time: number;
-}): Promise<{ message: string; recipeId?: number }> {
+// Get cuisines with popularity above global average
+//  Create a button or dropdown in the frontend 
+// 2.1.9
+export async function getCuisinesAboveGlobalAverage(): Promise<
+  { cuisine: string; average_popularity: number }[]
+> {
   try {
-    const { rows: recipeRows } = await sql<{ id: number }>`
-      INSERT INTO recipes (user_id, title, description, cooking_time)
-      VALUES (${data.userId}, ${data.title}, ${data.description})
-      RETURNING id;
+    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
+      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
+      FROM cuisines cu
+      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+      JOIN recipes r ON rc.recipe_id = r.id
+      GROUP BY cu.name
+      HAVING AVG(r.popularity) > (
+        SELECT AVG(r2.popularity) FROM recipes r2
+      )
+      ORDER BY average_popularity DESC;
     `;
-
-    const recipeId = recipeRows[0].id;
-
-    return { message: "Recipe inserted successfully.", recipeId };
+    return rows;
   } catch (error) {
-    console.error("Error inserting recipe:", error);
-    throw new Error("Failed to insert recipe.");
+    console.error("Error fetching cuisines above global average:", error);
+    throw new Error("Failed to fetch cuisines above global average.");
+  }
+}
+
+// maybe for division function 2.1.10
+export async function fetchRecipesByDietaryRestrictions(
+  restrictions: string[]
+): Promise<Record<string, any>[]> {
+  try {
+    // Join restrictions into a single quoted, comma-separated string
+    const formattedRestrictions = restrictions.map((r) => `'${r}'`).join(", ");
+    const query = `
+      SELECT r.id, r.title, r.description, r.cooking_time
+      FROM recipes r
+      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
+      JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
+      WHERE dr.name IN (${formattedRestrictions})
+      GROUP BY r.id
+      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};
+    `;
+    const { rows } = await sql<Record<string, any>>([
+      query,
+    ] as unknown as TemplateStringsArray);
+    return rows;
+  } catch (error) {
+    console.error("Error fetching recipes by dietary restrictions:", error);
+    throw new Error("Failed to fetch recipes by dietary restrictions.");
   }
 }
 
@@ -419,25 +618,24 @@ export async function insertRecipe(data: {
 // }
 
 // Get recipes grouped by cuisine
-// 2.17 Aggregation with GROUP BY
-export async function getRecipesGroupedByCuisine(): Promise<
-  { cuisine: string; recipe_count: number }[]
-> {
-  try {
-    const { rows } = await sql<{ cuisine: string; recipe_count: number }>`
-      SELECT cu.name AS cuisine, COUNT(r.id) AS recipe_count
-      FROM cuisines cu
-      LEFT JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      LEFT JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      ORDER BY recipe_count DESC;
-    `;
-    return rows;
-  } catch (error) {
-    console.error("Error fetching recipes grouped by cuisine:", error);
-    throw new Error("Failed to fetch recipes grouped by cuisine.");
-  }
-}
+// export async function getRecipesGroupedByCuisine(): Promise<
+//   { cuisine: string; recipe_count: number }[]
+// > {
+//   try {
+//     const { rows } = await sql<{ cuisine: string; recipe_count: number }>`
+//       SELECT cu.name AS cuisine, COUNT(r.id) AS recipe_count
+//       FROM cuisines cu
+//       LEFT JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
+//       LEFT JOIN recipes r ON rc.recipe_id = r.id
+//       GROUP BY cu.name
+//       ORDER BY recipe_count DESC;
+//     `;
+//     return rows;
+//   } catch (error) {
+//     console.error("Error fetching recipes grouped by cuisine:", error);
+//     throw new Error("Failed to fetch recipes grouped by cuisine.");
+//   }
+// }
 
 // // Get popular cuisines with minimum popularity
 // // ?????
@@ -461,56 +659,6 @@ export async function getRecipesGroupedByCuisine(): Promise<
 //   }
 // }
 
-// Get cuisines with popularity above global average
-//  Create a button or dropdown in the frontend 
-// 2.1.9
-export async function getCuisinesAboveGlobalAverage(): Promise<
-  { cuisine: string; average_popularity: number }[]
-> {
-  try {
-    const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
-      SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
-      FROM cuisines cu
-      JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-      JOIN recipes r ON rc.recipe_id = r.id
-      GROUP BY cu.name
-      HAVING AVG(r.popularity) > (
-        SELECT AVG(r2.popularity) FROM recipes r2
-      )
-      ORDER BY average_popularity DESC;
-    `;
-    return rows;
-  } catch (error) {
-    console.error("Error fetching cuisines above global average:", error);
-    throw new Error("Failed to fetch cuisines above global average.");
-  }
-}
-
-// maybe for division function
-export async function fetchRecipesByDietaryRestrictions(
-  restrictions: string[]
-): Promise<Record<string, any>[]> {
-  try {
-    // Join restrictions into a single quoted, comma-separated string
-    const formattedRestrictions = restrictions.map((r) => `'${r}'`).join(", ");
-    const query = `
-      SELECT r.id, r.title, r.description, r.cooking_time
-      FROM recipes r
-      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
-      JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE dr.name IN (${formattedRestrictions})
-      GROUP BY r.id
-      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};
-    `;
-    const { rows } = await sql<Record<string, any>>([
-      query,
-    ] as unknown as TemplateStringsArray);
-    return rows;
-  } catch (error) {
-    console.error("Error fetching recipes by dietary restrictions:", error);
-    throw new Error("Failed to fetch recipes by dietary restrictions.");
-  }
-}
 
 export async function detailedRecipeExists(recipeId: number): Promise<boolean> {
   const stepsResult = await sql`
@@ -628,151 +776,6 @@ export async function fetchUniqueCategoryNamesByUserId(
   }
 }
 
-// 2.1.2 update
-export async function updateRecipeTitle(
-  recipeId: number,
-  newTitle: string
-): Promise<number> {
-  try {
-    const result = await sql`
-      UPDATE recipes
-      SET title = ${newTitle}
-      WHERE id = ${recipeId};
-    `;
-
-    const updatedRows = result.rowCount ?? 0;
-
-    return updatedRows > 0 ? 1 : 0;
-  } catch (error) {
-    console.error("Error updating recipe title:", error);
-    return 0;
-  }
-}
-
-// 2.1.5 projection
-export async function fetchCustomNutritionFacts(
-  recipeId: number,
-  showCalories: boolean,
-  showProteins: boolean,
-  showFats: boolean
-): Promise<Record<string, number | null> | null> {
-  try {
-    // Determine which attributes to select based on the boolean flags
-    const selectedAttributes: string[] = [];
-    if (showCalories) selectedAttributes.push("calories");
-    if (showProteins) selectedAttributes.push("proteins");
-    if (showFats) selectedAttributes.push("fats");
-
-    // If no attributes are selected, return null immediately
-    if (selectedAttributes.length === 0) {
-      return null;
-    }
-
-    // Validate the selected attributes against allowed columns
-    const validColumns = ["calories", "proteins", "fats"];
-    const columns = selectedAttributes.filter((col) =>
-      validColumns.includes(col)
-    );
-
-    if (columns.length === 0) {
-      return null;
-    }
-
-    // Use pg-format to safely format the query with dynamic column names
-    const query = format(
-      "SELECT %I FROM nutrition_facts WHERE recipe_id = %L;",
-      columns,
-      recipeId
-    );
-    const client = await db.connect();
-    // Execute the query using sql.unsafe
-    const { rows } = await client.query(query);
-
-    // Return the first row or null if no data exists
-    return rows.length > 0 ? rows[0] : null;
-  } catch (error) {
-    console.error("Error fetching custom nutrition facts:", error);
-    throw new Error("Failed to fetch custom nutrition facts.");
-  }
-}
-
-// 2.1.4 Selection
-export async function fetchFilteredRecipes(
-  userId: number,
-  category?: string,
-  cuisine?: string,
-  dietaryRestriction?: string
-): Promise<Recipe[]> {
-  try {
-    // Initialize the base query and parameters array
-    let baseQuery = `
-      SELECT DISTINCT r.id, r.user_id, r.title, r.description, r.cooking_time
-      FROM recipes r
-      LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
-      LEFT JOIN categories c ON rc.category_id = c.id
-      LEFT JOIN recipe_cuisines rcu ON r.id = rcu.recipe_id
-      LEFT JOIN cuisines cu ON rcu.cuisine_id = cu.id
-      LEFT JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
-      LEFT JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE r.user_id = %L
-    `;
-    const queryParams: any[] = [userId];
-
-    // Collect conditions
-    const conditions: string[] = [];
-
-    if (category) {
-      conditions.push("c.name = %L");
-      queryParams.push(category);
-    }
-    if (cuisine) {
-      conditions.push("cu.name = %L");
-      queryParams.push(cuisine);
-    }
-    if (dietaryRestriction) {
-      conditions.push("dr.name = %L");
-      queryParams.push(dietaryRestriction);
-    }
-
-    // If there are additional conditions, append them to the base query
-    if (conditions.length > 0) {
-      const whereClause = conditions.join(" AND ");
-      baseQuery += ` AND ${whereClause}`;
-    }
-
-    // Use pg-format to safely format the query with parameters
-    const formattedQuery = format(baseQuery, ...queryParams);
-
-    const client = await db.connect();
-    // Execute the query using sql.unsafe
-    const { rows } = await client.query(formattedQuery);
-
-    return rows;
-  } catch (error) {
-    console.error("Error fetching filtered recipes:", error);
-    throw new Error("Failed to fetch filtered recipes.");
-  }
-  
-}
-
-export async function fetchRecipesByIngredient(
-  ingredientName: string
-): Promise<Recipe[]> {
-  try {
-    const { rows } = await sql<Recipe>`
-      SELECT DISTINCT recipes.id, recipes.title, recipes.description, recipes.cooking_time
-      FROM recipes
-      INNER JOIN recipe_ingredients ON recipes.id = recipe_ingredients.recipe_id
-      INNER JOIN ingredients ON recipe_ingredients.ingredient_id = ingredients.id
-      WHERE ingredients.name ILIKE '%' || ${ingredientName} || '%';
-    `;
-
-    return rows;
-  } catch (error) {
-    console.error("Error fetching recipes by ingredient:", error);
-    throw new Error("Failed to fetch recipes by ingredient.");
-  }
-}
 
 export async function saveRecipeDetails(
   recipeId: number,
