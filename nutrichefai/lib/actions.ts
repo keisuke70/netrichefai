@@ -602,30 +602,37 @@ export async function getRecipeCountsNestedAggregation(
 }
 
 // maybe for division function 2.1.10
-export async function fetchRecipesByDietaryRestrictions(
-  userId: number,
-  restrictions: string[]
-): Promise<Record<string, any>[]> {
+export async function getRecipesForAllDietaryRestrictions(
+  userId: number
+): Promise<{ recipeId: number; recipeTitle: string }[]> {
   try {
-    // Join restrictions into a single quoted, comma-separated string
-    const formattedRestrictions = restrictions.map((r) => "${r}").join(", ");
-    const query = `SELECT r.id, r.title, r.description, r.cooking_time
+    // Execute the division query
+    const { rows } = await sql<{ recipe_id: number; recipe_title: string }>`
+      SELECT r.id AS recipe_id, r.title AS recipe_title
       FROM recipes r
-      JOIN recipe_dietary_restrictions rdr ON r.id = rdr.recipe_id
-      JOIN dietary_restrictions dr ON rdr.dietary_id = dr.id
-      WHERE dr.name IN (${formattedRestrictions})
-        AND r.user_id = ${userId} -- Filter by userId
-      GROUP BY r.id
-      HAVING COUNT(DISTINCT dr.name) = ${restrictions.length};`;
-    const { rows } = await sql<Record<string, any>>([
-      query,
-    ] as unknown as TemplateStringsArray);
-    return rows;
+      WHERE NOT EXISTS (
+        SELECT dr.id
+        FROM dietary_restrictions dr
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM recipe_dietary_restrictions rdr
+          WHERE rdr.recipe_id = r.id
+          AND rdr.dietary_id = dr.id
+        )
+      )
+      AND r.user_id = ${userId};
+    `;
+
+    return rows.map(row => ({
+      recipeId: row.recipe_id,
+      recipeTitle: row.recipe_title,
+    }));
   } catch (error) {
-    console.error("Error fetching recipes by dietary restrictions:", error);
-    throw new Error("Failed to fetch recipes by dietary restrictions.");
+    console.error('Error fetching recipes for all dietary restrictions:', error);
+    throw new Error('Failed to fetch recipes.');
   }
 }
+
 
 // // Search recipes based on filters
 // export async function searchRecipes(
