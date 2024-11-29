@@ -484,31 +484,20 @@ export async function fetchRecipesByIngredient(
 
 // 2.1.7 Aggregation with GROUP BY
 export async function numOfRecipesByCategory(
-  userId?: number
+  userId: number
 ): Promise<{ category: string; recipe_count: number }[]> {
   try {
-    const { rows } = userId
-      ? await sql`
-        SELECT 
-          c.name AS category, 
-          COUNT(r.id) AS recipe_count
-        FROM categories c
-        LEFT JOIN recipe_categories rc ON c.id = rc.category_id
-        LEFT JOIN recipes r ON rc.recipe_id = r.id
-        WHERE r.id = ${userId}
-        GROUP BY c.name
-        ORDER BY recipe_count DESC; -- Optional: Order by count, descending
-      `
-      : await sql`
-        SELECT 
-          c.name AS category, 
-          COUNT(r.id) AS recipe_count
-        FROM categories c
-        LEFT JOIN recipe_categories rc ON c.id = rc.category_id
-        LEFT JOIN recipes r ON rc.recipe_id = r.id
-        GROUP BY c.name
-        ORDER BY recipe_count DESC; -- Optional: Order by count, descending
-      `;
+    const { rows } = await sql`
+      SELECT 
+        c.name AS category, 
+        COUNT(r.id) AS recipe_count
+      FROM categories c
+      LEFT JOIN recipe_categories rc ON c.id = rc.category_id
+      LEFT JOIN recipes r ON rc.recipe_id = r.id
+      WHERE r.user_id = ${userId} -- Filter by userId
+      GROUP BY c.name
+      ORDER BY recipe_count DESC; -- Optional: Order by count, descending
+    `;
 
     return rows.map((row) => ({
       category: row.category,
