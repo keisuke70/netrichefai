@@ -4,6 +4,7 @@ import {
   cuisines,
   dietaryRestrictions,
 } from "../../../lib/placeholder-data";
+import bcrypt from "bcrypt";
 
 export async function GET() {
   const client = await db.connect();
@@ -179,17 +180,21 @@ export async function GET() {
       `;
     }
 
+    const hashedPassword = await bcrypt.hash("Yk20020221", 10);
+    const email = "jordan2002222@gmail.com";
+
+    await client.sql`
+      INSERT INTO users (email, password)
+      VALUES
+        (${email}, ${hashedPassword});
+    `;
+
     await client.sql`
       INSERT INTO recipes (user_id, title, description, cooking_time)
       VALUES
         (1, 'Vegan Buddha Bowl', 'A healthy bowl with quinoa, roasted vegetables, and tahini dressing.', 30),
         (1, 'Chicken Tikka Masala', 'A flavorful Indian dish with creamy tomato curry and marinated chicken.', 45),
         (1, 'Gluten-Free Pancakes', 'Fluffy pancakes made with almond flour and a hint of vanilla.', 20);
-    `;
-    await client.sql`
-      INSERT INTO user (id, email, password)
-      VALUES
-        (1, jordan2002222@gmail.com, Yk20020221);
     `;
 
     await client.sql`
@@ -334,7 +339,7 @@ export async function GET() {
         (2, 600, 40, 20), -- Tikka Masala
         (3, 300, 10, 10); -- Pancakes
     `;
-      
+
     await client.sql`COMMIT`;
 
     return new Response(

@@ -593,14 +593,14 @@ export async function getRecipeCountsNestedAggregation(
         FROM recipes r
         JOIN recipe_categories rc ON r.id = rc.recipe_id
         JOIN categories cat ON rc.category_id = cat.id
-        WHERE r.user_id = 22
+        WHERE r.user_id = ${userId}
         GROUP BY cat.name, r.id
         HAVING COUNT(r.id) <= ALL (
           SELECT COUNT(r2.id)
           FROM recipes r2
           JOIN recipe_categories rc2 ON r2.id = rc2.recipe_id
           JOIN categories cat2 ON rc2.category_id = cat2.id
-          WHERE r2.user_id = 22
+          WHERE r2.user_id = ${userId}
           GROUP BY cat2.name, r2.id
         )
       ) AS category_group
