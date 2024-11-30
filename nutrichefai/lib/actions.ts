@@ -19,15 +19,13 @@ export async function signup(
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  // Check if the email already exists
   const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
 
   if (existingUser.rows.length > 0) {
     return `This email is already used`;
   }
 
-  // Hash the password using bcrypt
-  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
+  const hashedPassword = await bcrypt.hash(password, 10);
 
   // Store the user in the database with the hashed password
   await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;

@@ -1,4 +1,3 @@
-// ../component/RecipeList.tsx
 import React from "react";
 import RecipeCard from "./RecipeCard2";
 import { Recipe } from "@/lib/definitions";

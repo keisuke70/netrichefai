@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { sql } from "@vercel/postgres";
 import { signInSchema } from "@/lib/zod";
 
-// Fetch the user from the database
+
 async function getUser(email: string) {
   try {
     const user = await sql<{ id: string; email: string; password: string }>`
@@ -26,7 +26,6 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          // Validate the provided credentials against the schema
           const { email, password } = signInSchema.parse(credentials);
 
           // Fetch the user from the database
@@ -69,7 +68,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     // Expose user ID in the session object
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id as string; // Include user ID in the session
+        session.user.id = token.id as string; 
       }
       return session;
     },

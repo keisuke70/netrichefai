@@ -1,6 +1,6 @@
 "use client";
 
-import { authenticate } from "@/lib/actions"; // Server action for authentication
+import { authenticate } from "@/lib/actions";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
 import { Icons } from "@/components/ui/icons";
 
 export function SignIn() {
-  // Manage state using useActionState for the authenticate action
   const [errorMessage, formAction, isPending] = useActionState(
     authenticate,
     undefined

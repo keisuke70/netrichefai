@@ -44,7 +44,6 @@ const Filters: React.FC<FiltersProps> = ({
 }) => {
   return (
     <div className="mb-6">
-      {/* Search Input and Clear Button */}
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <Input
           type="text"
@@ -56,7 +55,7 @@ const Filters: React.FC<FiltersProps> = ({
         <Button onClick={() => setSearchTerm("")}>Clear</Button>
       </div>
 
-      {/* Components Above Select */}
+
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex items-center">
           <NumOfRecipesByCategory userId={userId!} />
@@ -77,7 +76,6 @@ const Filters: React.FC<FiltersProps> = ({
         
       </div>
 
-      {/* Select Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mt-4">
         <div className="flex flex-col sm:flex-row gap-4 flex-nowrap">
           <Select value={cuisineFilter} onValueChange={setCuisineFilter}>

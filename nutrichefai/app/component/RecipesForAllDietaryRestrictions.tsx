@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PieChartIcon as ChartPieIcon, XIcon } from "lucide-react";
-import { getRecipesForAllDietaryRestrictions } from "@/lib/actions"; // Import the function
+import { getRecipesForAllDietaryRestrictions } from "@/lib/actions";
 
 interface Recipe {
   recipeId: number;

@@ -16,7 +16,6 @@ import {
 import { Icons } from "@/components/ui/icons";
 
 export default function SignupForm() {
-  // Using useActionState to handle server action states
   const [errorMessage, formAction, isPending] = useActionState(
     signup,
     undefined

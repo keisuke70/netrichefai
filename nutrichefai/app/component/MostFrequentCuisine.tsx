@@ -18,7 +18,7 @@ interface CuisineCount {
 }
 
 interface MostFrequentCuisineProps {
-  userId: number; // Receive userId as a prop
+  userId: number;
 }
 
 export default function MostFrequentCuisine({
@@ -36,7 +36,7 @@ export default function MostFrequentCuisine({
 
     try {
       setIsLoading(true);
-      const data = await maxCuisineAppearance(userId); // Fetch data using the function
+      const data = await maxCuisineAppearance(userId);
       setRecipeData(data);
       setIsOpen(true);
     } catch (error) {

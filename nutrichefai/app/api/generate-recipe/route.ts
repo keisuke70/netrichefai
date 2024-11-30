@@ -10,7 +10,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Wrap the array schema inside an object schema
 const recipeSchema = z.object({
   recipes: z.array(
     z.object({

@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button'; // shadcnui Button component
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'; // shadcnui Card components
+} from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -16,8 +16,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'; // shadcnui Table components
-import { PieChartIcon as ChartPieIcon, XIcon } from 'lucide-react'; // Icons from lucide-react
+} from '@/components/ui/table'; 
+import { PieChartIcon as ChartPieIcon, XIcon } from 'lucide-react';
 import { numOfRecipesByCategory } from '@/lib/actions';
 
 interface RecipesByCategoryProps {
@@ -33,7 +33,7 @@ export default function RecipesByCategory({ userId }: RecipesByCategoryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [recipeData, setRecipeData] = useState<RecipeCategoryCount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null); // Ref for dropdown
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchRecipeCounts = async () => {
     if (isOpen) {

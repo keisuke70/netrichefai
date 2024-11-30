@@ -12,7 +12,6 @@ import {
 import { Recipe } from "@/lib/definitions";
 import { fetchDetailedRecipe, detailedRecipeExists } from "@/lib/actions";
 
-// Implement fetchDetailedRecipe function
 
 // OpenAI initialization
 const openai = new OpenAI({
