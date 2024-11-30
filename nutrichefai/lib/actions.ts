@@ -6,71 +6,71 @@ import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import {
   Recipe,
-  RecipeStep,
-  NutritionFact,
-  Ingredient,
-  PerishableIngredient,
-  Allergen,
-  Category,
-  Cuisine,
-  DietaryRestriction,
 } from "./definitions";
 import format from "pg-format";
 import { z } from "zod";
 
-// // Fetch user recipes with pagination
-// export async function fetchUserRecipes(
-//   userId: number,
-//   page: number = 1,
-//   limit: number = 5
-// ): Promise<{ recipes: Recipe[]; totalCount: number }> {
-//   const offset = (page - 1) * limit;
 
-//   const { rows } = await sql`
-//     SELECT
-//       r.id,
-//       r.user_id,
-//       r.title,
-//       r.description,
-//       r.cooking_time AS "cooking_time"
-//     FROM recipes r
-//     WHERE r.user_id = ${userId}
-//     ORDER BY r.id ASC
-//     LIMIT ${limit} OFFSET ${offset};
-//   `;
+//authentication
+export async function signup(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
-//   const totalCount = parseInt(
-//     (
-//       await sql`
-//         SELECT COUNT(*) AS total_count
-//         FROM recipes
-//         WHERE user_id = ${userId};
-//       `
-//     ).rows[0]?.total_count || "0",
-//     10
-//   );
+  // Check if the email already exists
+  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
 
-//   return { recipes: rows as Recipe[], totalCount };
-// }
+  if (existingUser.rows.length > 0) {
+    return `This email is already used`;
+  }
 
-// Fetch a single user's recipes without pagination
-export async function fetchRecipeByUser(userId: number): Promise<Recipe[]> {
-  const { rows } = await sql<Recipe>`
-    SELECT 
-      r.id, 
-      r.user_id, 
-      r.title, 
-      r.description, 
-      r.cooking_time AS "cooking_time"
-    FROM recipes r
-    WHERE r.user_id = ${userId};
-  `;
-  return rows;
+  // Hash the password using bcrypt
+  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
+
+  // Store the user in the database with the hashed password
+  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
+
+  // Sign the user in using NextAuth's credentials provider
+  await signIn("credentials", {
+    redirect: true,
+    redirectTo: "/",
+    email,
+    password,
+  });
 }
 
-// Example implementation (you'll need to adjust this to match your schema)
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  try {
+    const email = formData.get("email");
+    const password = formData.get("password");
+
+    await signIn("credentials", {
+      redirect: true,
+      redirectTo: "/",
+      email,
+      password,
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return "Invalid credentials. Please try again.";
+    }
+    throw error;
+  }
+}
+
+export async function detailedRecipeExists(recipeId: number): Promise<boolean> {
+  const stepsResult = await sql`
+    SELECT 1 FROM recipe_steps WHERE recipe_id = ${recipeId} LIMIT 1;
+  `;
+  return stepsResult.rows.length > 0;
+}
+
 export async function fetchDetailedRecipe(recipeId: number) {
-  // Fetch basic recipe info
   const recipeResult = await sql`
     SELECT * FROM recipes WHERE id = ${recipeId};
   `;
@@ -154,106 +154,130 @@ export async function fetchDetailedRecipe(recipeId: number) {
   };
 }
 
-// Fetch recipe steps
-export async function fetchRecipeSteps(
-  recipeId: number
-): Promise<RecipeStep[]> {
-  const { rows } = await sql<RecipeStep>`
-    SELECT 
-      recipe_id, 
-      step_num, 
-      description
-    FROM recipe_steps
-    WHERE recipe_id = ${recipeId}
-    ORDER BY step_num ASC;
-  `;
-  return rows;
+export async function saveRecipeDetails(
+  recipeId: number,
+  recipeDetails: {
+    category: string[];
+    cuisines: string[];
+    dietaryRestrictions: string[];
+    ingredients: {
+      name: string;
+      allergens: string[];
+      storage_temp?: number | null;
+      shelf_life?: number | null;
+    }[];
+    steps: string[];
+    nutritionFacts?: { calories: number; proteins: number; fats: number };
+  }
+): Promise<void> {
+  const {
+    category: recipeCategories,
+    cuisines: recipeCuisines,
+    dietaryRestrictions: recipeDietaryRestrictions,
+    ingredients,
+    steps,
+    nutritionFacts,
+  } = recipeDetails;
+
+  try {
+    // Insert categories
+    for (const catName of recipeCategories) {
+      await sql`
+        INSERT INTO recipe_categories (recipe_id, category_id)
+        SELECT ${recipeId}, id FROM categories WHERE name = ${catName}
+        ON CONFLICT (recipe_id, category_id) DO NOTHING;
+      `;
+    }
+
+    // Insert cuisines
+    for (const cuisineName of recipeCuisines) {
+      await sql`
+        INSERT INTO recipe_cuisines (recipe_id, cuisine_id)
+        SELECT ${recipeId}, id FROM cuisines WHERE name = ${cuisineName}
+        ON CONFLICT (recipe_id, cuisine_id) DO NOTHING;
+      `;
+    }
+
+    // Insert dietary restrictions
+    for (const restrictionName of recipeDietaryRestrictions) {
+      await sql`
+        INSERT INTO recipe_dietary_restrictions (recipe_id, dietary_id)
+        SELECT ${recipeId}, id FROM dietary_restrictions WHERE name = ${restrictionName}
+        ON CONFLICT (recipe_id, dietary_id) DO NOTHING;
+      `;
+    }
+
+    // Insert ingredients and allergens
+    for (const ingredient of ingredients) {
+      const ingredientResult = await sql`
+        INSERT INTO ingredients (name, storage_temp)
+        VALUES (${ingredient.name}, ${ingredient.storage_temp})
+        ON CONFLICT (name) DO UPDATE SET storage_temp = EXCLUDED.storage_temp
+        RETURNING id;
+      `;
+
+      const ingredientId = ingredientResult.rows[0]?.id;
+      if (!ingredientId) continue;
+
+      await sql`
+        INSERT INTO recipe_ingredients (recipe_id, ingredient_id)
+        VALUES (${recipeId}, ${ingredientId})
+        ON CONFLICT (recipe_id, ingredient_id) DO NOTHING;
+      `;
+
+      if (
+        ingredient.shelf_life !== undefined &&
+        ingredient.shelf_life !== null
+      ) {
+        await sql`
+          INSERT INTO perishable_ingredients (id, shelf_life)
+          VALUES (${ingredientId}, ${ingredient.shelf_life})
+          ON CONFLICT (id) DO UPDATE SET shelf_life = EXCLUDED.shelf_life;
+        `;
+      }
+
+      for (const allergenName of ingredient.allergens) {
+        await sql`
+          INSERT INTO allergens (name)
+          VALUES (${allergenName})
+          ON CONFLICT (name) DO NOTHING;
+        `;
+
+        await sql`
+          INSERT INTO ingredient_allergens (ingredient_id, allergen_id)
+          SELECT ${ingredientId}, id FROM allergens WHERE name = ${allergenName}
+          ON CONFLICT (ingredient_id, allergen_id) DO NOTHING;
+        `;
+      }
+    }
+
+    // Insert recipe steps
+    for (const [index, step] of steps.entries()) {
+      await sql`
+        INSERT INTO recipe_steps (recipe_id, step_num, description)
+        VALUES (${recipeId}, ${index + 1}, ${step})
+        ON CONFLICT (recipe_id, step_num) DO UPDATE SET description = EXCLUDED.description;
+      `;
+    }
+
+    // Insert nutrition facts
+    if (nutritionFacts) {
+      const { calories, proteins, fats } = nutritionFacts;
+      await sql`
+        INSERT INTO nutrition_facts (recipe_id, calories, proteins, fats)
+        VALUES (${recipeId}, ${calories}, ${proteins}, ${fats})
+        ON CONFLICT (recipe_id) DO UPDATE
+        SET calories = EXCLUDED.calories,
+            proteins = EXCLUDED.proteins,
+            fats = EXCLUDED.fats;
+      `;
+    }
+  } catch (error) {
+    console.error("Error saving recipe details:", error);
+    throw new Error("Failed to save recipe details.");
+  }
 }
 
-// Fetch nutrition facts for a recipe
-export async function fetchNutritionFacts(
-  recipeId: number
-): Promise<NutritionFact | null> {
-  const { rows } = await sql<NutritionFact>`
-    SELECT nutrition_id, recipe_id, calories, proteins, fats
-    FROM nutrition_facts
-    WHERE recipe_id = ${recipeId};
-  `;
-  return rows.length > 0 ? rows[0] : null;
-}
-
-// Fetch ingredients of a recipe
-export async function fetchRecipeIngredients(
-  recipeId: number
-): Promise<Ingredient[]> {
-  const { rows } = await sql`
-    SELECT i.id, i.name, i.storage_temp
-    FROM ingredients i
-    JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
-    WHERE ri.recipe_id = ${recipeId};
-  `;
-  return rows as Ingredient[];
-}
-
-// Fetch perishable ingredients of a recipe
-export async function fetchPerishableIngredients(
-  recipeId: number
-): Promise<PerishableIngredient[]> {
-  const { rows } = await sql`
-    SELECT 
-      i.id, 
-      i.name, 
-      i.storage_temp, 
-      pi.shelf_life
-    FROM ingredients i
-    JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
-    JOIN perishable_ingredients pi ON i.id = pi.id
-    WHERE ri.recipe_id = ${recipeId};
-  `;
-  return rows as PerishableIngredient[];
-}
-
-// Fetch allergens for an ingredient
-export async function fetchAllergens(
-  ingredientId: number
-): Promise<Allergen[]> {
-  const { rows } = await sql`
-    SELECT a.id, a.name
-    FROM allergens a
-    JOIN ingredient_allergens ia ON a.id = ia.allergen_id
-    WHERE ia.ingredient_id = ${ingredientId};
-  `;
-  return rows as Allergen[];
-}
-
-// Fetch categories
-export async function fetchCategories(): Promise<Category[]> {
-  const { rows } = await sql<Category>`
-    SELECT id, name
-    FROM categories;
-  `;
-  return rows;
-}
-
-// Fetch cuisines
-export async function fetchCuisines(): Promise<Cuisine[]> {
-  const { rows } = await sql<Cuisine>`
-    SELECT id, name
-    FROM cuisines;
-  `;
-  return rows;
-}
-
-// Fetch dietary restrictions
-export async function fetchDietaryRestrictions(): Promise<
-  DietaryRestriction[]
-> {
-  const { rows } = await sql<DietaryRestriction>`
-    SELECT id, name, description
-    FROM dietary_restrictions;
-  `;
-  return rows;
-}
 
 //Insert a new recipe
 //2.1.1 INSERT
@@ -270,7 +294,6 @@ const recipeSchema = z.object({
     .regex(/^\d+$/, "Cooking time must be a valid number.")
     .transform(Number), // Ensure it's converted to a number
 });
-
 export async function insertRecipe(
   prevState: any,
   formData: FormData
@@ -316,6 +339,8 @@ export async function insertRecipe(
     throw new Error("Failed to insert recipe.");
   }
 }
+
+
 
 // 2.1.2 update
 export async function updateRecipeTitle(
@@ -601,7 +626,7 @@ export async function getRecipeCountsNestedAggregation(
   }
 }
 
-// maybe for division function 2.1.10
+//  division function 2.1.10
 export async function getRecipesForAllDietaryRestrictions(
   userId: number
 ): Promise<{ recipeId: number; recipeTitle: string }[]> {
@@ -634,166 +659,8 @@ export async function getRecipesForAllDietaryRestrictions(
 }
 
 
-// // Search recipes based on filters
-// export async function searchRecipes(
-//   filters: string
-// ): Promise<{ id: number; title: string }[]> {
-//   try {
-//     const query = `
-//       SELECT id, title
-//       FROM recipes
-//       WHERE ${filters};
-//     `;
-//     const { rows } = await sql<{ id: number; title: string }>([
-//       query,
-//     ] as unknown as TemplateStringsArray);
-//     return rows;
-//   } catch (error) {
-//     console.error("Error searching recipes:", error);
-//     throw new Error("Failed to search recipes.");
-//   }
-// }
 
-// // Project recipe attributes
-// export async function projectRecipeAttributes(
-//   attributes: string[]
-// ): Promise<Record<string, any>[]> {
-//   try {
-//     const selectedAttributes = attributes.join(", ");
-//     const query = `
-//       SELECT ${selectedAttributes}
-//       FROM recipes;
-//     `;
-//     const { rows } = await sql<Record<string, any>>([
-//       query,
-//     ] as unknown as TemplateStringsArray);
-//     return rows;
-//   } catch (error) {
-//     console.error("Error projecting attributes:", error);
-//     throw new Error("Failed to project attributes.");
-//   }
-// }
-
-// // Join recipes and categories
-// export async function joinRecipesAndCategories(
-//   categoryId: number
-// ): Promise<{ recipe: string; category: string }[]> {
-//   try {
-//     const { rows } = await sql<{ recipe: string; category: string }>`
-//       SELECT r.title AS recipe, c.name AS category
-//       FROM recipes r
-//       JOIN recipe_categories rc ON r.id = rc.recipe_id
-//       JOIN categories c ON rc.category_id = c.id
-//       WHERE c.id = ${categoryId};
-//     `;
-//     return rows;
-//   } catch (error) {
-//     console.error("Error joining recipes and categories:", error);
-//     throw new Error("Failed to join recipes and categories.");
-//   }
-// }
-
-// Get recipes grouped by cuisine
-// export async function getRecipesGroupedByCuisine(): Promise<
-//   { cuisine: string; recipe_count: number }[]
-// > {
-//   try {
-//     const { rows } = await sql<{ cuisine: string; recipe_count: number }>`
-//       SELECT cu.name AS cuisine, COUNT(r.id) AS recipe_count
-//       FROM cuisines cu
-//       LEFT JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-//       LEFT JOIN recipes r ON rc.recipe_id = r.id
-//       GROUP BY cu.name
-//       ORDER BY recipe_count DESC;
-//     `;
-//     return rows;
-//   } catch (error) {
-//     console.error("Error fetching recipes grouped by cuisine:", error);
-//     throw new Error("Failed to fetch recipes grouped by cuisine.");
-//   }
-// }
-
-// // Get popular cuisines with minimum popularity
-// // ?????
-// export async function getPopularCuisines(
-//   minPopularity: number
-// ): Promise<{ cuisine: string; average_popularity: number }[]> {
-//   try {
-//     const { rows } = await sql<{ cuisine: string; average_popularity: number }>`
-//       SELECT cu.name AS cuisine, AVG(r.popularity) AS average_popularity
-//       FROM cuisines cu
-//       JOIN recipe_cuisines rc ON cu.id = rc.cuisine_id
-//       JOIN recipes r ON rc.recipe_id = r.id
-//       GROUP BY cu.name
-//       HAVING AVG(r.popularity) > ${minPopularity}
-//       ORDER BY average_popularity DESC;
-//     `;
-//     return rows;
-//   } catch (error) {
-//     console.error("Error fetching popular cuisines:", error);
-//     throw new Error("Failed to fetch popular cuisines.");
-//   }
-// }
-
-export async function detailedRecipeExists(recipeId: number): Promise<boolean> {
-  const stepsResult = await sql`
-    SELECT 1 FROM recipe_steps WHERE recipe_id = ${recipeId} LIMIT 1;
-  `;
-  return stepsResult.rows.length > 0;
-}
-
-// Don't touch below
-export async function signup(
-  prevState: string | undefined,
-  formData: FormData
-) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  // Check if the email already exists
-  const existingUser = await sql`SELECT * FROM users WHERE email = ${email};`;
-
-  if (existingUser.rows.length > 0) {
-    return `This email is already used`;
-  }
-
-  // Hash the password using bcrypt
-  const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds set to 10
-
-  // Store the user in the database with the hashed password
-  await sql`INSERT INTO users (email, password) VALUES (${email}, ${hashedPassword});`;
-
-  // Sign the user in using NextAuth's credentials provider
-  await signIn("credentials", {
-    redirect: true,
-    redirectTo: "/",
-    email,
-    password,
-  });
-}
-
-// Don't touch below
-export async function authenticate(
-  prevState: string | undefined,
-  formData: FormData
-) {
-  try {
-    const email = formData.get("email");
-    const password = formData.get("password");
-
-    await signIn("credentials", {
-      redirect: true,
-      redirectTo: "/",
-      email,
-      password,
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return "Invalid credentials. Please try again.";
-    }
-    throw error;
-  }
-}
+//For dinamic generation of available options
 
 // for selecting options, we need this
 export async function fetchUserDietaryRestrictionNames(
@@ -850,126 +717,105 @@ export async function fetchUniqueCategoryNamesByUserId(
   }
 }
 
-export async function saveRecipeDetails(
-  recipeId: number,
-  recipeDetails: {
-    category: string[];
-    cuisines: string[];
-    dietaryRestrictions: string[];
-    ingredients: {
-      name: string;
-      allergens: string[];
-      storage_temp?: number | null;
-      shelf_life?: number | null;
-    }[];
-    steps: string[];
-    nutritionFacts?: { calories: number; proteins: number; fats: number };
-  }
-): Promise<void> {
-  const {
-    category: recipeCategories,
-    cuisines: recipeCuisines,
-    dietaryRestrictions: recipeDietaryRestrictions,
-    ingredients,
-    steps,
-    nutritionFacts,
-  } = recipeDetails;
 
-  try {
-    // Insert categories
-    for (const catName of recipeCategories) {
-      await sql`
-        INSERT INTO recipe_categories (recipe_id, category_id)
-        SELECT ${recipeId}, id FROM categories WHERE name = ${catName}
-        ON CONFLICT (recipe_id, category_id) DO NOTHING;
-      `;
-    }
 
-    // Insert cuisines
-    for (const cuisineName of recipeCuisines) {
-      await sql`
-        INSERT INTO recipe_cuisines (recipe_id, cuisine_id)
-        SELECT ${recipeId}, id FROM cuisines WHERE name = ${cuisineName}
-        ON CONFLICT (recipe_id, cuisine_id) DO NOTHING;
-      `;
-    }
+// // Fetch recipe steps
+// export async function fetchRecipeSteps(
+//   recipeId: number
+// ): Promise<RecipeStep[]> {
+//   const { rows } = await sql<RecipeStep>`
+//     SELECT 
+//       recipe_id, 
+//       step_num, 
+//       description
+//     FROM recipe_steps
+//     WHERE recipe_id = ${recipeId}
+//     ORDER BY step_num ASC;
+//   `;
+//   return rows;
+// }
 
-    // Insert dietary restrictions
-    for (const restrictionName of recipeDietaryRestrictions) {
-      await sql`
-        INSERT INTO recipe_dietary_restrictions (recipe_id, dietary_id)
-        SELECT ${recipeId}, id FROM dietary_restrictions WHERE name = ${restrictionName}
-        ON CONFLICT (recipe_id, dietary_id) DO NOTHING;
-      `;
-    }
+// // Fetch nutrition facts for a recipe
+// export async function fetchNutritionFacts(
+//   recipeId: number
+// ): Promise<NutritionFact | null> {
+//   const { rows } = await sql<NutritionFact>`
+//     SELECT nutrition_id, recipe_id, calories, proteins, fats
+//     FROM nutrition_facts
+//     WHERE recipe_id = ${recipeId};
+//   `;
+//   return rows.length > 0 ? rows[0] : null;
+// }
 
-    // Insert ingredients and allergens
-    for (const ingredient of ingredients) {
-      const ingredientResult = await sql`
-        INSERT INTO ingredients (name, storage_temp)
-        VALUES (${ingredient.name}, ${ingredient.storage_temp})
-        ON CONFLICT (name) DO UPDATE SET storage_temp = EXCLUDED.storage_temp
-        RETURNING id;
-      `;
+// // Fetch ingredients of a recipe
+// export async function fetchRecipeIngredients(
+//   recipeId: number
+// ): Promise<Ingredient[]> {
+//   const { rows } = await sql`
+//     SELECT i.id, i.name, i.storage_temp
+//     FROM ingredients i
+//     JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
+//     WHERE ri.recipe_id = ${recipeId};
+//   `;
+//   return rows as Ingredient[];
+// }
 
-      const ingredientId = ingredientResult.rows[0]?.id;
-      if (!ingredientId) continue;
+// // Fetch perishable ingredients of a recipe
+// export async function fetchPerishableIngredients(
+//   recipeId: number
+// ): Promise<PerishableIngredient[]> {
+//   const { rows } = await sql`
+//     SELECT 
+//       i.id, 
+//       i.name, 
+//       i.storage_temp, 
+//       pi.shelf_life
+//     FROM ingredients i
+//     JOIN recipe_ingredients ri ON i.id = ri.ingredient_id
+//     JOIN perishable_ingredients pi ON i.id = pi.id
+//     WHERE ri.recipe_id = ${recipeId};
+//   `;
+//   return rows as PerishableIngredient[];
+// }
 
-      await sql`
-        INSERT INTO recipe_ingredients (recipe_id, ingredient_id)
-        VALUES (${recipeId}, ${ingredientId})
-        ON CONFLICT (recipe_id, ingredient_id) DO NOTHING;
-      `;
+// // Fetch allergens for an ingredient
+// export async function fetchAllergens(
+//   ingredientId: number
+// ): Promise<Allergen[]> {
+//   const { rows } = await sql`
+//     SELECT a.id, a.name
+//     FROM allergens a
+//     JOIN ingredient_allergens ia ON a.id = ia.allergen_id
+//     WHERE ia.ingredient_id = ${ingredientId};
+//   `;
+//   return rows as Allergen[];
+// }
 
-      if (
-        ingredient.shelf_life !== undefined &&
-        ingredient.shelf_life !== null
-      ) {
-        await sql`
-          INSERT INTO perishable_ingredients (id, shelf_life)
-          VALUES (${ingredientId}, ${ingredient.shelf_life})
-          ON CONFLICT (id) DO UPDATE SET shelf_life = EXCLUDED.shelf_life;
-        `;
-      }
+// // Fetch categories
+// export async function fetchCategories(): Promise<Category[]> {
+//   const { rows } = await sql<Category>`
+//     SELECT id, name
+//     FROM categories;
+//   `;
+//   return rows;
+// }
 
-      for (const allergenName of ingredient.allergens) {
-        await sql`
-          INSERT INTO allergens (name)
-          VALUES (${allergenName})
-          ON CONFLICT (name) DO NOTHING;
-        `;
+// // Fetch cuisines
+// export async function fetchCuisines(): Promise<Cuisine[]> {
+//   const { rows } = await sql<Cuisine>`
+//     SELECT id, name
+//     FROM cuisines;
+//   `;
+//   return rows;
+// }
 
-        await sql`
-          INSERT INTO ingredient_allergens (ingredient_id, allergen_id)
-          SELECT ${ingredientId}, id FROM allergens WHERE name = ${allergenName}
-          ON CONFLICT (ingredient_id, allergen_id) DO NOTHING;
-        `;
-      }
-    }
-
-    // Insert recipe steps
-    for (const [index, step] of steps.entries()) {
-      await sql`
-        INSERT INTO recipe_steps (recipe_id, step_num, description)
-        VALUES (${recipeId}, ${index + 1}, ${step})
-        ON CONFLICT (recipe_id, step_num) DO UPDATE SET description = EXCLUDED.description;
-      `;
-    }
-
-    // Insert nutrition facts
-    if (nutritionFacts) {
-      const { calories, proteins, fats } = nutritionFacts;
-      await sql`
-        INSERT INTO nutrition_facts (recipe_id, calories, proteins, fats)
-        VALUES (${recipeId}, ${calories}, ${proteins}, ${fats})
-        ON CONFLICT (recipe_id) DO UPDATE
-        SET calories = EXCLUDED.calories,
-            proteins = EXCLUDED.proteins,
-            fats = EXCLUDED.fats;
-      `;
-    }
-  } catch (error) {
-    console.error("Error saving recipe details:", error);
-    throw new Error("Failed to save recipe details.");
-  }
-}
+// // Fetch dietary restrictions
+// export async function fetchDietaryRestrictions(): Promise<
+//   DietaryRestriction[]
+// > {
+//   const { rows } = await sql<DietaryRestriction>`
+//     SELECT id, name, description
+//     FROM dietary_restrictions;
+//   `;
+//   return rows;
+// }
